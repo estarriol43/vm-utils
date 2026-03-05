@@ -1,7 +1,7 @@
 #!/bin/bash
 
-MEM="4096"
-SMP="8"
+MEM="12288"
+SMP="4"
 REALM=""
 NESTED=""
 PVM=""
