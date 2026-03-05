@@ -52,7 +52,7 @@ do
             shift 1
             ;;
         --pvm)
-            PVM="--protected"
+            PVM="--pkvm"
             shift 1
             ;;
         --kvmtool)
