@@ -16,6 +16,9 @@ fi
 # Create a virtual network device for L1
 sudo ip tuntap add $TAP_DEV mode tap
 
+# Match the MTU size on jetson 10Gbps network interface
+sudo ip link set dev $TAP_DEV mtu 1466
+
 # Put virtual network device under bridge interface
 sudo ip link set $TAP_DEV master $BRIDGE_IFACE
 

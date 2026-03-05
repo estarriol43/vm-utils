@@ -25,3 +25,4 @@ network:
         addresses: [140.112.30.21, 8.8.8.8]
       parameters:
         stp: true
+      mtu: 1466

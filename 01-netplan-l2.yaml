@@ -12,3 +12,4 @@ network:
           via: 10.10.0.10
       nameservers:
         addresses: [140.112.30.21, 8.8.8.8]
+      mtu: 1466
