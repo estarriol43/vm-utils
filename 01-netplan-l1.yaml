@@ -5,7 +5,7 @@ network:
     enp0s0:
       dhcp4: no
       dhcp6: no
-    mtu: 1466
+      mtu: 1466
   bridges:
     br0:
       interfaces: [enp0s0]
