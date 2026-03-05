@@ -1,0 +1,15 @@
+network:
+  version: 2
+  ethernets:
+    enp4s0:
+      dhcp4: true
+    enp1s0f0np0:
+      dhcp4: no
+      addresses:
+        - 10.10.0.20/24
+      routes:
+        - to: default
+          via: 10.10.0.10
+      nameservers:
+        addresses: [192.168.188.100, 140.112.30.21, 8.8.8.8]
+      mtu: 1466
