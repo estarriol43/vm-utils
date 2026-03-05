@@ -13,5 +13,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     sudo cp -r $line /mnt/root
 done < "$FILE_LIST"
 
+sync
+
 # Umount the partition
 sudo umount /mnt
