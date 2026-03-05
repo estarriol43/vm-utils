@@ -7,18 +7,20 @@ IMAGE_SIZE="20G"
 NETCFG_FILE="01-netcfg-l1.yaml"
 
 usage() {
-    echo "Usage: $0 [-n IMAGE_NAME] [-s IMAGE_SIZE] [-c NETCFG_FILE]"
+    echo "Usage: $0 [-n IMAGE_NAME] [-s IMAGE_SIZE] [-c NETCFG_FILE] [-k SSH_KEY]"
     echo "  -n  Output image filename  (default: $IMAGE_NAME)"
     echo "  -s  Image size             (default: $IMAGE_SIZE)"
     echo "  -c  Netplan config file    (default: $NETCFG_FILE)"
+    echo "  -k  SSH public key file    (default: auto-detected)"
     exit 1
 }
 
-while getopts "n:s:c:h" opt; do
+while getopts "n:k:c:s:h" opt; do
     case "$opt" in
         n) IMAGE_NAME="$OPTARG" ;;
         s) IMAGE_SIZE="$OPTARG" ;;
         c) NETCFG_FILE="$OPTARG" ;;
+        k) SSH_KEY_INPUT="$OPTARG" ;;
         h|*) usage ;;
     esac
 done
@@ -77,20 +79,29 @@ fi
 echo "Configuring SSH root login with host key..."
 SSH_KEY=""
 
-# Detect real user's home directory to find SSH keys if running with sudo
-if [ -n "$SUDO_USER" ]; then
-    USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
-else
-    USER_HOME="$HOME"
-fi
-
-# Check for common key types in real user's home
-for key in "$USER_HOME/.ssh/id_rsa.pub" "$USER_HOME/.ssh/id_ed25519.pub" "$USER_HOME/.ssh/id_ecdsa.pub"; do
-    if [ -f "$key" ]; then
-        SSH_KEY="$key"
-        break
+if [ -n "$SSH_KEY_INPUT" ]; then
+    if [ -f "$SSH_KEY_INPUT" ]; then
+        SSH_KEY="$SSH_KEY_INPUT"
+    else
+        echo "Error: Specified SSH key file $SSH_KEY_INPUT not found."
+        exit 1
     fi
-done
+else
+    # Detect real user's home directory to find SSH keys if running with sudo
+    if [ -n "$SUDO_USER" ]; then
+        USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+    else
+        USER_HOME="$HOME"
+    fi
+
+    # Check for common key types in real user's home
+    for key in "$USER_HOME/.ssh/id_rsa.pub" "$USER_HOME/.ssh/id_ed25519.pub" "$USER_HOME/.ssh/id_ecdsa.pub"; do
+        if [ -f "$key" ]; then
+            SSH_KEY="$key"
+            break
+        fi
+    done
+fi
 
 if [ -z "$SSH_KEY" ]; then
     echo "Error: No SSH public key found in $USER_HOME/.ssh/"
