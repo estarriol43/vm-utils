@@ -8,7 +8,7 @@ PVM=""
 KVM_MODE="protected"
 
 ROOT="/home/jianlin/nested"
-KERNEL="${ROOT}/linux-l0/arch/arm64/boot/Image"
+KERNEL="${ROOT}/linux-l1/arch/arm64/boot/Image"
 KVMTOOL_PATH="${ROOT}/kvmtool-l1/lkvm-static"
 DISK_PATH="${ROOT}/ubuntu-2404.img"
 
