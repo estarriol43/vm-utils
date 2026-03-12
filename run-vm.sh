@@ -27,7 +27,7 @@ Options:
       --kvmtool PATH    Path to lkvm binary        (default: ${KVMTOOL_PATH})
       --realm           Enable realm mode (--realm --restricted_mem)
       --nested          Enable nested mode (--nested --e2h0)
-      --pvm             Enable protected VM mode (--protected)
+      --pvm             Enable protected VM mode (--pkvm)
   -h, --help            Show this help message and exit
 EOF
 }
