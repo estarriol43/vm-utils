@@ -2,13 +2,13 @@ network:
   version: 2
   renderer: networkd
   ethernets:
-    enp0s0:
+    enp0s1:
       dhcp4: no
       dhcp6: no
       mtu: 1466
   bridges:
     br0:
-      interfaces: [enp0s0]
+      interfaces: [enp0s1]
       dhcp4: no
       dhcp6: no
       addresses:
