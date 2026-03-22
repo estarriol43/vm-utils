@@ -1,4 +1,4 @@
 /home/jianlin/nested/vm-utils
-/home/jianlin/nested/linux-l0/arch/arm64/boot/Image
+/home/jianlin/nested/linux-l1/arch/arm64/boot/Image
 /home/jianlin/nested/kvmtool-l1
 /home/jianlin/ubuntu-2404-l2.img
