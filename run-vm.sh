@@ -98,4 +98,5 @@ $KVMTOOL_PATH run \
     -p "kvm-arm.mode=$KVM_MODE rw swiotlb=force" \
     --loglevel=debug \
     -n mode=tap,tapif=tap0,vhost=1 \
+    --rng \
     $PVM $NESTED $REALM
