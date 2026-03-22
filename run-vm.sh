@@ -90,6 +90,11 @@ do
     esac
 done
 
+if ! ip link show tap0 > /dev/null 2>&1; then
+    echo "Error: Network interface tap0 does not exist. Please create it before running the VM." >&2
+    exit 1
+fi
+
 $KVMTOOL_PATH run \
     -c $SMP \
     -m $MEM \
