@@ -2,10 +2,32 @@
 set -e
 
 # Configuration
-NUM_VMS=${1:-2}
+NUM_VMS=2
+CUSTOM_VM_OPTS=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -n|--num)
+            NUM_VMS="$2"
+            shift 2
+            ;;
+        -o|--opts)
+            CUSTOM_VM_OPTS="$2"
+            shift 2
+            ;;
+        -h|--help)
+            echo "Usage: $0 [-n num_vms] [-o \"custom vm options\"]"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
 SESSION_NAME="vms"
 BASE_DISK=~/ubuntu-2404-no-network.img
-MEM=1024
 UPLINK="end0"
 BRIDGE="br0"
 USERNAME="root"
@@ -58,7 +80,7 @@ for i in $(seq 0 $((NUM_VMS - 1))); do
     # 3. Create expect script inside tmux
     echo "Starting VM ${i} in tmux window: $WINDOW_NAME"
     
-    VM_CMD="sudo ./run-vm.sh -d $VM_DISK -m $MEM -t $TAP"
+    VM_CMD="sudo ./run-vm.sh -d $VM_DISK -t $TAP $CUSTOM_VM_OPTS"
     EXP_SCRIPT="/tmp/spawn_vm_${i}.exp"
     cat <<EOF > "$EXP_SCRIPT"
 set timeout -1
