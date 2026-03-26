@@ -6,11 +6,12 @@ REALM=""
 NESTED=""
 PVM=""
 KVM_MODE="protected"
+TAP_DEV="tap0"
 
 ROOT="/home/jianlin/nested"
 KERNEL="${ROOT}/linux-l1/arch/arm64/boot/Image"
 KVMTOOL_PATH="${ROOT}/kvmtool-l1/lkvm-static"
-DISK_PATH="${ROOT}/ubuntu-2404.img"
+DISK_PATH="${ROOT}/ubuntu-2404-l1.img"
 
 usage() {
     cat <<EOF
@@ -28,6 +29,7 @@ Options:
       --realm           Enable realm mode (--realm --restricted_mem)
       --nested          Enable nested mode (--nested --e2h0)
       --pvm             Enable protected VM mode (--pkvm)
+  -t, --tap DEV         Tap device                 (default: ${TAP_DEV})
   -h, --help            Show this help message and exit
 EOF
 }
@@ -71,6 +73,10 @@ do
             MEM="$2"
             shift 2
             ;;
+        -t | --tap )
+            TAP_DEV="$2"
+            shift 2
+            ;;
         --)
             shift
             break
@@ -90,8 +96,8 @@ do
     esac
 done
 
-if ! ip link show tap0 > /dev/null 2>&1; then
-    echo "Error: Network interface tap0 does not exist. Please create it before running the VM." >&2
+if ! ip link show $TAP_DEV > /dev/null 2>&1; then
+    echo "Error: Network interface $TAP_DEV does not exist. Please create it before running the VM." >&2
     exit 1
 fi
 
@@ -102,6 +108,6 @@ $KVMTOOL_PATH run \
     -d $DISK_PATH \
     -p "kvm-arm.mode=$KVM_MODE rw swiotlb=force" \
     --loglevel=debug \
-    -n mode=tap,tapif=tap0,vhost=1 \
+    -n mode=tap,tapif=$TAP_DEV,vhost=1 \
     --rng \
     $PVM $NESTED $REALM
