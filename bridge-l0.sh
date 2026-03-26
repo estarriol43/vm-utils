@@ -1,11 +1,46 @@
 #!/bin/bash
 set -e
 
-# Configuration
+# Default Configuration
 UPLINK_IFACE="enP2p1s0"
 BRIDGE_IFACE="br0"
 SUBNET="10.10.0.0/24"
 TAP_DEV="tap0"
+
+usage() {
+    echo "Usage: $0 [options]"
+    echo "Options:"
+    echo "  -u, --uplink <iface>   Uplink interface (default: enP2p1s0)"
+    echo "  -b, --bridge <iface>   Bridge interface (default: br0)"
+    echo "  -t, --tap <dev>        Tap device (default: tap0)"
+    echo "  -h, --help             Show this help message"
+}
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -u|--uplink)
+            UPLINK_IFACE="$2"
+            shift 2
+            ;;
+        -b|--bridge)
+            BRIDGE_IFACE="$2"
+            shift 2
+            ;;
+        -t|--tap)
+            TAP_DEV="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            usage
+            exit 1
+            ;;
+    esac
+done
 
 if ip link show $TAP_DEV >/dev/null 2>&1; then
     echo "Cleaning up existing $TAP_DEV..."
