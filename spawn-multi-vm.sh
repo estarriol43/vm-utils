@@ -4,6 +4,9 @@ set -e
 # Configuration
 NUM_VMS=2
 CUSTOM_VM_OPTS=""
+BASE_DISK=~/ubuntu-2404-no-network.img
+UPLINK="end0"
+BRIDGE="br0"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -15,8 +18,20 @@ while [[ $# -gt 0 ]]; do
             CUSTOM_VM_OPTS="$2"
             shift 2
             ;;
+        -u|--uplink)
+            UPLINK="$2"
+            shift 2
+            ;;
+        -b|--bridge)
+            BRIDGE="$2"
+            shift 2
+            ;;
+        -d|--disk)
+            BASE_DISK="$2"
+            shift 2
+            ;;
         -h|--help)
-            echo "Usage: $0 [-n num_vms] [-o \"custom vm options\"]"
+            echo "Usage: $0 [-n num_vms] [-o \"custom vm options\"] [-u uplink] [-b bridge] [-d base_disk]"
             exit 0
             ;;
         *)
@@ -27,9 +42,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 SESSION_NAME="vms"
-BASE_DISK=~/ubuntu-2404-no-network.img
-UPLINK="end0"
-BRIDGE="br0"
 USERNAME="root"
 
 # Prompt for sudo password so we can automatically fill it in the tmux window
