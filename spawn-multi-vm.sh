@@ -5,7 +5,7 @@ set -e
 NUM_VMS=2
 CUSTOM_VM_OPTS=""
 BASE_DISK=~/ubuntu-2404-no-network.img
-UPLINK="end0"
+UPLINK="enP2p1s0"
 BRIDGE="br0"
 
 while [[ $# -gt 0 ]]; do
@@ -109,14 +109,22 @@ expect {
         exp_continue
     }
     "root@ubuntu:~#" {
-        sleep 0.5
         send "ip addr add 10.10.0.$((i + 100))/24 dev enp0s1\r"
-        sleep 0.5
+        expect "root@ubuntu:~#"
+
         send "ip link set enp0s1 up\r"
-        sleep 0.5
+        expect "root@ubuntu:~#"
+
         send "ip route add default via 10.10.0.10 dev enp0s1\r"
-        sleep 0.5
-        send "echo \"nameserver 8.8.8.8\" > /etc/resolv.conf\r"
+        expect "root@ubuntu:~#"
+
+        send "resolvectl dns enp0s1 8.8.8.8\r"
+        expect "root@ubuntu:~#"
+
+        send "sleep 30\r"
+        expect "root@ubuntu:~#"
+
+        send "ping -c 1 google.com\r"
     }
 }
 interact
