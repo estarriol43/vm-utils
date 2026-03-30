@@ -7,6 +7,7 @@ NESTED=""
 PVM=""
 KVM_MODE="protected"
 TAP_DEV="tap0"
+MACVTAP=""
 
 ROOT="/home/jianlin/nested"
 KERNEL="${ROOT}/linux-l1/arch/arm64/boot/Image"
@@ -30,6 +31,7 @@ Options:
       --nested          Enable nested mode (--nested --e2h0)
       --pvm             Enable protected VM mode (--pkvm)
   -t, --tap DEV         Tap device                 (default: ${TAP_DEV})
+      --macvtap         Use macvtap network device
   -h, --help            Show this help message and exit
 EOF
 }
@@ -77,6 +79,10 @@ do
             TAP_DEV="$2"
             shift 2
             ;;
+        --macvtap )
+            MACVTAP="y"
+            shift 1
+            ;;
         --)
             shift
             break
@@ -101,6 +107,15 @@ if ! ip link show $TAP_DEV > /dev/null 2>&1; then
     exit 1
 fi
 
+if [ "$MACVTAP" = 'y' ]; then
+    TAP_INDEX=$(cat /sys/class/net/$TAP_DEV/ifindex)
+    TAP_MAC=$(cat /sys/class/net/$TAP_DEV/address)
+    TAP_DEV=/dev/tap$TAP_INDEX
+    NET_OPT="mode=tap,tapif=$TAP_DEV,guest_mac=$TAP_MAC"
+else
+    NET_OPT="mode=tap,tapif=$TAP_DEV"
+fi
+
 $KVMTOOL_PATH run \
     -c $SMP \
     -m $MEM \
@@ -108,6 +123,6 @@ $KVMTOOL_PATH run \
     -d $DISK_PATH \
     -p "kvm-arm.mode=$KVM_MODE rw swiotlb=force" \
     --loglevel=debug \
-    -n mode=tap,tapif=$TAP_DEV,vhost=1 \
+    -n "$NET_OPT" \
     --rng \
     $PVM $NESTED $REALM
