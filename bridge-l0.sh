@@ -8,6 +8,7 @@ SUBNET="10.10.0.0/24"
 
 BRIDGE_IFACE_SET=0
 TAP_DEV_SET=0
+FORWARD_ONLY=0
 
 usage() {
     echo "Usage: $0 [options]"
@@ -16,7 +17,24 @@ usage() {
     echo "  -u, --uplink <iface>         Uplink interface (default: enP2p1s0)"
     echo "  -b, --bridge <iface>         Bridge interface (default: br0 for tuntap, mgbe0_0 for macvtap)"
     echo "  -t, --tap <dev>              Tap device (default: tap0 for tuntap, macvtap0 for macvtap)"
+    echo "  -f, --forward-only           Only set up forwarding rules (skips interface creation)"
     echo "  -h, --help                   Show this help message"
+}
+
+setup_forwarding() {
+    # Enable IPv4 forwarding
+    sudo sysctl -w net.ipv4.ip_forward=1
+
+    # NAT: guest subnet -> uplink
+    sudo iptables -t nat -C POSTROUTING -s $SUBNET -o $UPLINK_IFACE -j MASQUERADE 2>/dev/null || \
+    sudo iptables -t nat -A POSTROUTING -s $SUBNET -o $UPLINK_IFACE -j MASQUERADE
+
+    # Forwarding rules
+    sudo iptables -C FORWARD -i $BRIDGE_IFACE -o $UPLINK_IFACE -j ACCEPT 2>/dev/null || \
+    sudo iptables -A FORWARD -i $BRIDGE_IFACE -o $UPLINK_IFACE -j ACCEPT
+
+    sudo iptables -C FORWARD -i $UPLINK_IFACE -o $BRIDGE_IFACE -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
+    sudo iptables -A FORWARD -i $UPLINK_IFACE -o $BRIDGE_IFACE -m state --state RELATED,ESTABLISHED -j ACCEPT
 }
 
 while [[ $# -gt 0 ]]; do
@@ -37,6 +55,10 @@ while [[ $# -gt 0 ]]; do
         -t|--tap)
             TAP_DEV="$2"
             shift 2
+            ;;
+        -f|--forward-only)
+            FORWARD_ONLY=1
+            shift 1
             ;;
         -h|--help)
             usage
@@ -61,6 +83,13 @@ if [[ "$MODE" == "macvtap" ]]; then
     [[ $BRIDGE_IFACE_SET -eq 0 ]] && BRIDGE_IFACE="mgbe0_0"
 else
     [[ $BRIDGE_IFACE_SET -eq 0 ]] && BRIDGE_IFACE="br0"
+fi
+
+if [[ $FORWARD_ONLY -eq 1 ]]; then
+    echo "Setting up forwarding rules only..."
+    setup_forwarding
+    echo "Forwarding rules set up successfully."
+    exit 0
 fi
 
 if ip link show $TAP_DEV >/dev/null 2>&1; then
@@ -99,19 +128,7 @@ else
     # Bring up virtual network device for L1
     sudo ip link set $TAP_DEV up
 
-    # Enable IPv4 forwarding
-    sudo sysctl -w net.ipv4.ip_forward=1
-
-    # NAT: guest subnet -> uplink
-    sudo iptables -t nat -C POSTROUTING -s $SUBNET -o $UPLINK_IFACE -j MASQUERADE 2>/dev/null || \
-    sudo iptables -t nat -A POSTROUTING -s $SUBNET -o $UPLINK_IFACE -j MASQUERADE
-
-    # Forwarding rules
-    sudo iptables -C FORWARD -i $BRIDGE_IFACE -o $UPLINK_IFACE -j ACCEPT 2>/dev/null || \
-    sudo iptables -A FORWARD -i $BRIDGE_IFACE -o $UPLINK_IFACE -j ACCEPT
-
-    sudo iptables -C FORWARD -i $UPLINK_IFACE -o $BRIDGE_IFACE -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
-    sudo iptables -A FORWARD -i $UPLINK_IFACE -o $BRIDGE_IFACE -m state --state RELATED,ESTABLISHED -j ACCEPT
+    setup_forwarding
 
     echo "Bridge network set up successfully in tuntap mode."
     echo "Host Bridge IP:"
