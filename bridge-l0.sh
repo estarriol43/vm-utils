@@ -95,43 +95,29 @@ fi
 if ip link show $TAP_DEV >/dev/null 2>&1; then
     echo "Cleaning up existing $TAP_DEV..."
     sudo ip link set $TAP_DEV down
-    # Try deleting as a link first, or specific tuntap delete if needed
-    if [[ "$MODE" == "tuntap" ]]; then
-        sudo ip link delete $TAP_DEV || sudo ip tuntap del $TAP_DEV mode tap
-    else
-        sudo ip link delete $TAP_DEV
-    fi
+    sudo ip link delete $TAP_DEV
 fi
 
 if [[ "$MODE" == "macvtap" ]]; then
     # Create a virtual network device for L1
     sudo ip link add link $BRIDGE_IFACE name $TAP_DEV type macvtap mode bridge
-
-    # Match the MTU size on jetson 10Gbps network interface
-    sudo ip link set dev $TAP_DEV mtu 1466
-
-    # Bring up virtual network device for L1
-    sudo ip link set $TAP_DEV up
-
-    echo "Bridge network set up successfully in macvtap mode."
-    echo "Virtual Network Device: $TAP_DEV"
 else
     # Create a virtual network device for L1
     sudo ip tuntap add $TAP_DEV mode tap
 
-    # Match the MTU size on jetson 10Gbps network interface
-    sudo ip link set dev $TAP_DEV mtu 1466
-
     # Put virtual network device under bridge interface
     sudo ip link set $TAP_DEV master $BRIDGE_IFACE
-
-    # Bring up virtual network device for L1
-    sudo ip link set $TAP_DEV up
-
-    setup_forwarding
-
-    echo "Bridge network set up successfully in tuntap mode."
-    echo "Host Bridge IP:"
-    ip -4 addr show dev $BRIDGE_IFACE | grep inet || true
-    echo "Virtual Network Device: $TAP_DEV"
 fi
+
+# Match the MTU size on jetson 10Gbps network interface
+sudo ip link set dev $TAP_DEV mtu 1466
+
+# Bring up virtual network device for L1
+sudo ip link set $TAP_DEV up
+
+if [[ "$MODE" == "tuntap" ]]; then
+    setup_forwarding
+fi
+
+echo "Bridge network set up successfully in $MODE mode."
+echo "Virtual Network Device: $TAP_DEV"
