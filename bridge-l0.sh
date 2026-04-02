@@ -3,10 +3,11 @@ set -e
 
 # Default Configuration
 MODE="tuntap"
-UPLINK_IFACE="enP2p1s0"
+WAN_IFACE="enP2p1s0"
 SUBNET="10.10.0.0/24"
+BRIDGE_PORT=""
 
-BRIDGE_IFACE_SET=0
+BRIDGE_DEV_SET=0
 TAP_DEV_SET=0
 FORWARD_ONLY=0
 
@@ -14,9 +15,10 @@ usage() {
     echo "Usage: $0 [options]"
     echo "Options:"
     echo "  -m, --mode <tuntap|macvtap>  Mode to use (default: tuntap)"
-    echo "  -u, --uplink <iface>         Uplink interface (default: enP2p1s0)"
-    echo "  -b, --bridge <iface>         Bridge interface (default: br0 for tuntap, mgbe0_0 for macvtap)"
+    echo "  -w, --wan <iface>            WAN interface for NAT (default: enP2p1s0)"
+    echo "  -b, --bridge-dev <dev>       Bridge device (default: br0 for tuntap, mgbe0_0 for macvtap)"
     echo "  -t, --tap <dev>              Tap device (default: tap0 for tuntap, macvtap0 for macvtap)"
+    echo "  -p, --port <iface>           Physical port to add to the bridge (optional)"
     echo "  -f, --forward-only           Only set up forwarding rules (skips interface creation)"
     echo "  -h, --help                   Show this help message"
 }
@@ -26,15 +28,15 @@ setup_forwarding() {
     sudo sysctl -w net.ipv4.ip_forward=1
 
     # NAT: guest subnet -> uplink
-    sudo iptables -t nat -C POSTROUTING -s $SUBNET -o $UPLINK_IFACE -j MASQUERADE 2>/dev/null || \
-    sudo iptables -t nat -A POSTROUTING -s $SUBNET -o $UPLINK_IFACE -j MASQUERADE
+    sudo iptables -t nat -C POSTROUTING -s $SUBNET -o $WAN_IFACE -j MASQUERADE 2>/dev/null || \
+    sudo iptables -t nat -A POSTROUTING -s $SUBNET -o $WAN_IFACE -j MASQUERADE
 
     # Forwarding rules
-    sudo iptables -C FORWARD -i $BRIDGE_IFACE -o $UPLINK_IFACE -j ACCEPT 2>/dev/null || \
-    sudo iptables -A FORWARD -i $BRIDGE_IFACE -o $UPLINK_IFACE -j ACCEPT
+    sudo iptables -C FORWARD -i $BRIDGE_DEV -o $WAN_IFACE -j ACCEPT 2>/dev/null || \
+    sudo iptables -A FORWARD -i $BRIDGE_DEV -o $WAN_IFACE -j ACCEPT
 
-    sudo iptables -C FORWARD -i $UPLINK_IFACE -o $BRIDGE_IFACE -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
-    sudo iptables -A FORWARD -i $UPLINK_IFACE -o $BRIDGE_IFACE -m state --state RELATED,ESTABLISHED -j ACCEPT
+    sudo iptables -C FORWARD -i $WAN_IFACE -o $BRIDGE_DEV -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
+    sudo iptables -A FORWARD -i $WAN_IFACE -o $BRIDGE_DEV -m state --state RELATED,ESTABLISHED -j ACCEPT
 }
 
 while [[ $# -gt 0 ]]; do
@@ -43,17 +45,21 @@ while [[ $# -gt 0 ]]; do
             MODE="$2"
             shift 2
             ;;
-        -u|--uplink)
-            UPLINK_IFACE="$2"
+        -w|--wan)
+            WAN_IFACE="$2"
             shift 2
             ;;
-        -b|--bridge)
-            BRIDGE_IFACE="$2"
-            BRIDGE_IFACE_SET=1
+        -b|--bridge-dev)
+            BRIDGE_DEV="$2"
+            BRIDGE_DEV_SET=1
             shift 2
             ;;
         -t|--tap)
             TAP_DEV="$2"
+            shift 2
+            ;;
+        -p|--port)
+            BRIDGE_PORT="$2"
             shift 2
             ;;
         -f|--forward-only)
@@ -80,9 +86,9 @@ fi
 
 # Set defaults based on mode if not explicitly set
 if [[ "$MODE" == "macvtap" ]]; then
-    [[ $BRIDGE_IFACE_SET -eq 0 ]] && BRIDGE_IFACE="mgbe0_0"
+    [[ $BRIDGE_DEV_SET -eq 0 ]] && BRIDGE_DEV="mgbe0_0"
 else
-    [[ $BRIDGE_IFACE_SET -eq 0 ]] && BRIDGE_IFACE="br0"
+    [[ $BRIDGE_DEV_SET -eq 0 ]] && BRIDGE_DEV="br0"
 fi
 
 if [[ $FORWARD_ONLY -eq 1 ]]; then
@@ -90,6 +96,17 @@ if [[ $FORWARD_ONLY -eq 1 ]]; then
     setup_forwarding
     echo "Forwarding rules set up successfully."
     exit 0
+fi
+
+if ! ip link show $BRIDGE_DEV >/dev/null 2>&1; then
+    echo "Creating bridge device $BRIDGE_DEV..."
+    sudo ip link add name $BRIDGE_DEV type bridge
+    sudo ip link set $BRIDGE_DEV up
+fi
+
+if [[ -n "$BRIDGE_PORT" ]]; then
+    echo "Adding physical port $BRIDGE_PORT to bridge $BRIDGE_DEV..."
+    sudo ip link set $BRIDGE_PORT master $BRIDGE_DEV
 fi
 
 if ip link show $TAP_DEV >/dev/null 2>&1; then
@@ -100,13 +117,13 @@ fi
 
 if [[ "$MODE" == "macvtap" ]]; then
     # Create a virtual network device for L1
-    sudo ip link add link $BRIDGE_IFACE name $TAP_DEV type macvtap mode bridge
+    sudo ip link add link $BRIDGE_DEV name $TAP_DEV type macvtap mode bridge
 else
     # Create a virtual network device for L1
     sudo ip tuntap add $TAP_DEV mode tap
 
-    # Put virtual network device under bridge interface
-    sudo ip link set $TAP_DEV master $BRIDGE_IFACE
+    # Put virtual network device under bridge device
+    sudo ip link set $TAP_DEV master $BRIDGE_DEV
 fi
 
 # Match the MTU size on jetson 10Gbps network interface
