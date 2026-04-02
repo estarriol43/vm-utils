@@ -161,12 +161,28 @@ if [[ "$MODE" == "macvtap" ]]; then
     sudo ip link add link $BRIDGE_DEV name $TAP_DEV type macvtap mode bridge
 else
     if ! ip link show $BRIDGE_DEV >/dev/null 2>&1; then
+        PORT_IPS=()
+        if [[ -n "$BRIDGE_PORT" ]] && ip link show "$BRIDGE_PORT" >/dev/null 2>&1; then
+            for ip in $(ip -4 -o addr show dev "$BRIDGE_PORT" | awk '{print $4}'); do
+                PORT_IPS+=("$ip")
+            done
+            echo "Flushing IP address from $BRIDGE_PORT..."
+            sudo ip addr flush dev "$BRIDGE_PORT"
+        fi
+
         echo "Creating bridge device $BRIDGE_DEV..."
-        sudo ip link add name $BRIDGE_DEV type bridge
-        sudo ip link set $BRIDGE_DEV up
+        sudo ip link add name "$BRIDGE_DEV" type bridge
+        sudo ip link set "$BRIDGE_DEV" up
         
-        # Assign an IP so the host can communicate with VMs in the subnet
-        sudo ip addr add $BRIDGE_IP dev $BRIDGE_DEV
+        if [[ ${#PORT_IPS[@]} -gt 0 ]]; then
+            echo "Moving IP addresses to $BRIDGE_DEV..."
+            for ip in "${PORT_IPS[@]}"; do
+                sudo ip addr add "$ip" dev "$BRIDGE_DEV"
+            done
+        else
+            # Assign an IP so the host can communicate with VMs in the subnet
+            sudo ip addr add "$BRIDGE_IP" dev "$BRIDGE_DEV"
+        fi
     fi
 
     if [[ -n "$BRIDGE_PORT" ]]; then
