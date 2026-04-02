@@ -8,6 +8,7 @@ SUBNET="10.10.0.0/24"
 BRIDGE_PORT="mgbe0_0"
 
 BRIDGE_DEV_SET=0
+BRIDGE_IP="10.10.0.10/24"
 TAP_DEV="tap0"
 FORWARD_ONLY=0
 CLEAN_ALL=0
@@ -153,6 +154,9 @@ else
         echo "Creating bridge device $BRIDGE_DEV..."
         sudo ip link add name $BRIDGE_DEV type bridge
         sudo ip link set $BRIDGE_DEV up
+        
+        # Assign an IP so the host can communicate with VMs in the subnet
+        sudo ip addr add $BRIDGE_IP dev $BRIDGE_DEV
     fi
 
     if [[ -n "$BRIDGE_PORT" ]]; then
