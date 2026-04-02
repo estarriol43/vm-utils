@@ -98,17 +98,6 @@ if [[ $FORWARD_ONLY -eq 1 ]]; then
     exit 0
 fi
 
-if ! ip link show $BRIDGE_DEV >/dev/null 2>&1; then
-    echo "Creating bridge device $BRIDGE_DEV..."
-    sudo ip link add name $BRIDGE_DEV type bridge
-    sudo ip link set $BRIDGE_DEV up
-fi
-
-if [[ -n "$BRIDGE_PORT" ]]; then
-    echo "Adding physical port $BRIDGE_PORT to bridge $BRIDGE_DEV..."
-    sudo ip link set $BRIDGE_PORT master $BRIDGE_DEV
-fi
-
 if ip link show $TAP_DEV >/dev/null 2>&1; then
     echo "Cleaning up existing $TAP_DEV..."
     sudo ip link set $TAP_DEV down
@@ -119,6 +108,17 @@ if [[ "$MODE" == "macvtap" ]]; then
     # Create a virtual network device for L1
     sudo ip link add link $BRIDGE_DEV name $TAP_DEV type macvtap mode bridge
 else
+    if ! ip link show $BRIDGE_DEV >/dev/null 2>&1; then
+        echo "Creating bridge device $BRIDGE_DEV..."
+        sudo ip link add name $BRIDGE_DEV type bridge
+        sudo ip link set $BRIDGE_DEV up
+    fi
+
+    if [[ -n "$BRIDGE_PORT" ]]; then
+        echo "Adding physical port $BRIDGE_PORT to bridge $BRIDGE_DEV..."
+        sudo ip link set $BRIDGE_PORT master $BRIDGE_DEV
+    fi
+
     # Create a virtual network device for L1
     sudo ip tuntap add $TAP_DEV mode tap
 
