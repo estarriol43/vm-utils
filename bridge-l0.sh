@@ -10,6 +10,7 @@ BRIDGE_PORT="mgbe0_0"
 BRIDGE_DEV_SET=0
 TAP_DEV="tap0"
 FORWARD_ONLY=0
+CLEAN_ALL=0
 
 usage() {
     echo "Usage: $0 [options]"
@@ -20,6 +21,7 @@ usage() {
     echo "  -t, --tap <dev>              Tap device (default: tap0)"
     echo "  -p, --port <iface>           Physical port to add to the bridge (optional, for tuntap only)"
     echo "  -f, --forward-only           Only set up forwarding rules (skips interface creation)"
+    echo "  -c, --clean-all              Clean up tap device and bridge device"
     echo "  -h, --help                   Show this help message"
 }
 
@@ -66,6 +68,10 @@ while [[ $# -gt 0 ]]; do
             FORWARD_ONLY=1
             shift 1
             ;;
+        -c|--clean-all)
+            CLEAN_ALL=1
+            shift 1
+            ;;
         -h|--help)
             usage
             exit 0
@@ -95,6 +101,41 @@ if [[ $FORWARD_ONLY -eq 1 ]]; then
     echo "Setting up forwarding rules only..."
     setup_forwarding
     echo "Forwarding rules set up successfully."
+    exit 0
+fi
+
+if [[ $CLEAN_ALL -eq 1 ]]; then
+    echo "Cleaning up devices..."
+    
+    # Remove all tap devices enslaved to the bridge
+    for dev_info in $(ip -brief link show master $BRIDGE_DEV 2>/dev/null | awk '{print $1}'); do
+        dev=${dev_info%%@*}
+        # Check if it's a virtual device via sysfs. Physical devices won't be in this directory.
+        if [[ -d "/sys/devices/virtual/net/$dev" ]]; then
+            echo "Removing virtual tap device $dev..."
+            sudo ip link set $dev down 2>/dev/null || true
+            sudo ip link delete $dev 2>/dev/null || true
+        else
+            echo "Keeping physical device $dev..."
+        fi
+    done
+    
+    # We only want to delete the BRIDGE_DEV if it is actually a virtual device
+    if [[ -d "/sys/devices/virtual/net/$BRIDGE_DEV" ]]; then
+        echo "Removing virtual bridge device $BRIDGE_DEV..."
+        sudo ip link set $BRIDGE_DEV down 2>/dev/null || true
+        sudo ip link delete $BRIDGE_DEV 2>/dev/null || true
+    fi
+
+    # Remove all macvtap devices linked across the system
+    for dev_info in $(ip -brief link show type macvtap 2>/dev/null | awk '{print $1}'); do
+        dev=${dev_info%%@*}
+        echo "Removing macvtap device $dev..."
+        sudo ip link set $dev down 2>/dev/null || true
+        sudo ip link delete $dev 2>/dev/null || true
+    done
+    
+    echo "Cleanup complete."
     exit 0
 fi
 
