@@ -5,10 +5,10 @@ set -e
 MODE="tuntap"
 WAN_IFACE="enP2p1s0"
 SUBNET="10.10.0.0/24"
-BRIDGE_PORT=""
+BRIDGE_PORT="mgbe0_0"
 
 BRIDGE_DEV_SET=0
-TAP_DEV_SET=0
+TAP_DEV="tap0"
 FORWARD_ONLY=0
 
 usage() {
@@ -17,8 +17,8 @@ usage() {
     echo "  -m, --mode <tuntap|macvtap>  Mode to use (default: tuntap)"
     echo "  -w, --wan <iface>            WAN interface for NAT (default: enP2p1s0)"
     echo "  -b, --bridge-dev <dev>       Bridge device (default: br0 for tuntap, mgbe0_0 for macvtap)"
-    echo "  -t, --tap <dev>              Tap device (default: tap0 for tuntap, macvtap0 for macvtap)"
-    echo "  -p, --port <iface>           Physical port to add to the bridge (optional)"
+    echo "  -t, --tap <dev>              Tap device (default: tap0)"
+    echo "  -p, --port <iface>           Physical port to add to the bridge (optional, for tuntap only)"
     echo "  -f, --forward-only           Only set up forwarding rules (skips interface creation)"
     echo "  -h, --help                   Show this help message"
 }
