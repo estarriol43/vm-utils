@@ -8,10 +8,16 @@ SUBNET="10.10.0.0/24"
 BRIDGE_PORT="mgbe0_0"
 
 BRIDGE_DEV_SET=0
+BRIDGE_DEV_TUNTAP="br0"
+BRIDGE_DEV_MACVTAP="mgbe0_0"
 BRIDGE_IP="10.10.0.10/24"
 TAP_DEV="tap0"
 FORWARD_ONLY=0
 CLEAN_ALL=0
+
+# For L1 VM
+# WAN_IFACE="enp0s1"
+# BRIDGE_PORT="enp0s1"
 
 usage() {
     echo "Usage: $0 [options]"
@@ -27,6 +33,10 @@ usage() {
 }
 
 setup_forwarding() {
+    if [[ "$WAN_IFACE" == "$BRIDGE_PORT" ]]; then
+        return
+    fi
+
     # Enable IPv4 forwarding
     sudo sysctl -w net.ipv4.ip_forward=1
 
@@ -93,9 +103,9 @@ fi
 
 # Set defaults based on mode if not explicitly set
 if [[ "$MODE" == "macvtap" ]]; then
-    [[ $BRIDGE_DEV_SET -eq 0 ]] && BRIDGE_DEV="mgbe0_0"
+    [[ $BRIDGE_DEV_SET -eq 0 ]] && BRIDGE_DEV="$BRIDGE_DEV_MACVTAP"
 else
-    [[ $BRIDGE_DEV_SET -eq 0 ]] && BRIDGE_DEV="br0"
+    [[ $BRIDGE_DEV_SET -eq 0 ]] && BRIDGE_DEV="$BRIDGE_DEV_TUNTAP"
 fi
 
 if [[ $FORWARD_ONLY -eq 1 ]]; then
