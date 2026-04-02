@@ -103,8 +103,13 @@ do
 done
 
 if ! ip link show $TAP_DEV > /dev/null 2>&1; then
-    echo "Error: Network interface $TAP_DEV does not exist. Please create it before running the VM." >&2
-    exit 1
+    echo "Network interface $TAP_DEV does not exist. Auto-creating via bridge-l0.sh..."
+    SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
+    if [ "$MACVTAP" = 'y' ]; then
+        bash "$SCRIPT_DIR/bridge-l0.sh" -t "$TAP_DEV" -m macvtap
+    else
+        bash "$SCRIPT_DIR/bridge-l0.sh" -t "$TAP_DEV"
+    fi
 fi
 
 if [ "$MACVTAP" = 'y' ]; then
