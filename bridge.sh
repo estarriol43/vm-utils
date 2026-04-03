@@ -52,6 +52,15 @@ setup_forwarding() {
     sudo iptables -A FORWARD -i $WAN_IFACE -o $BRIDGE_DEV -m state --state RELATED,ESTABLISHED -j ACCEPT
 }
 
+cleanup_forwarding() {
+    # NAT: guest subnet -> uplink
+    sudo iptables -t nat -D POSTROUTING -s $SUBNET -o $WAN_IFACE -j MASQUERADE 2>/dev/null || true
+
+    # Forwarding rules
+    sudo iptables -D FORWARD -i $BRIDGE_DEV -o $WAN_IFACE -j ACCEPT 2>/dev/null || true
+    sudo iptables -D FORWARD -i $WAN_IFACE -o $BRIDGE_DEV -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
+}
+
 while [[ $# -gt 0 ]]; do
     case $1 in
         -m|--mode)
@@ -116,6 +125,9 @@ if [[ $FORWARD_ONLY -eq 1 ]]; then
 fi
 
 if [[ $CLEAN_ALL -eq 1 ]]; then
+    echo "Cleaning up forwarding rules..."
+    cleanup_forwarding
+
     echo "Cleaning up devices..."
     
     # Remove all tap devices enslaved to the bridge
@@ -232,10 +244,6 @@ sudo ip link set dev $TAP_DEV mtu 1466
 
 # Bring up virtual network device for L1
 sudo ip link set $TAP_DEV up
-
-if [[ "$MODE" == "tuntap" ]]; then
-    setup_forwarding
-fi
 
 echo "Bridge network set up successfully in $MODE mode."
 echo "Virtual Network Device: $TAP_DEV"
