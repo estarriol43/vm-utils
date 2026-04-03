@@ -116,7 +116,7 @@ if [ "$MACVTAP" = 'y' ]; then
     TAP_INDEX=$(cat /sys/class/net/$TAP_DEV/ifindex)
     TAP_MAC=$(cat /sys/class/net/$TAP_DEV/address)
     TAP_DEV=/dev/tap$TAP_INDEX
-    NET_OPT="mode=tap,tapif=$TAP_DEV,vhost=1,guest_mac=$TAP_MAC"
+    NET_OPT="mode=tap,tapif=$TAP_DEV,,guest_mac=$TAP_MAC"
 else
     NET_OPT="mode=tap,tapif=$TAP_DEV,vhost=1"
 fi
