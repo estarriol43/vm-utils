@@ -162,10 +162,21 @@ if [[ "$MODE" == "macvtap" ]]; then
 else
     if ! ip link show $BRIDGE_DEV >/dev/null 2>&1; then
         PORT_IPS=()
+        PORT_GWS=()
+        PORT_DNS=""
+        PORT_DOMAINS=""
         if [[ -n "$BRIDGE_PORT" ]] && ip link show "$BRIDGE_PORT" >/dev/null 2>&1; then
             for ip in $(ip -4 -o addr show dev "$BRIDGE_PORT" | awk '{print $4}'); do
                 PORT_IPS+=("$ip")
             done
+            for gw in $(ip -4 route show default dev "$BRIDGE_PORT" 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="via") print $(i+1)}'); do
+                PORT_GWS+=("$gw")
+            done
+            if command -v resolvectl >/dev/null 2>&1; then
+                PORT_DNS=$(resolvectl dns "$BRIDGE_PORT" 2>/dev/null | awk -F': ' '{print $2}')
+                PORT_DOMAINS=$(resolvectl domain "$BRIDGE_PORT" 2>/dev/null | awk -F': ' '{print $2}')
+            fi
+
             echo "Flushing IP address from $BRIDGE_PORT..."
             sudo ip addr flush dev "$BRIDGE_PORT"
         fi
@@ -179,6 +190,25 @@ else
             for ip in "${PORT_IPS[@]}"; do
                 sudo ip addr add "$ip" dev "$BRIDGE_DEV"
             done
+
+            if [[ ${#PORT_GWS[@]} -gt 0 ]]; then
+                echo "Restoring default routes on $BRIDGE_DEV..."
+                for gw in "${PORT_GWS[@]}"; do
+                    sudo ip route add default via "$gw" dev "$BRIDGE_DEV"
+                done
+            fi
+
+            if command -v resolvectl >/dev/null 2>&1; then
+                if [[ -n "$PORT_DNS" ]]; then
+                    echo "Restoring DNS settings on $BRIDGE_DEV..."
+                    sudo resolvectl dns "$BRIDGE_DEV" $PORT_DNS
+                fi
+                if [[ -n "$PORT_DOMAINS" ]]; then
+                    # - starts testing removing '-*' from domain since it is safe from empty
+                    echo "Restoring DNS domains on $BRIDGE_DEV..."
+                    sudo resolvectl domain "$BRIDGE_DEV" $PORT_DOMAINS
+                fi
+            fi
         else
             # Assign an IP so the host can communicate with VMs in the subnet
             sudo ip addr add "$BRIDGE_IP" dev "$BRIDGE_DEV"
