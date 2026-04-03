@@ -106,9 +106,9 @@ if ! ip link show $TAP_DEV > /dev/null 2>&1; then
     echo "Network interface $TAP_DEV does not exist. Auto-creating via bridge-l0.sh..."
     SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
     if [ "$MACVTAP" = 'y' ]; then
-        bash "$SCRIPT_DIR/bridge-l0.sh" -t "$TAP_DEV" -m macvtap
+        bash "$SCRIPT_DIR/bridge.sh" -t "$TAP_DEV" -m macvtap
     else
-        bash "$SCRIPT_DIR/bridge-l0.sh" -t "$TAP_DEV"
+        bash "$SCRIPT_DIR/bridge.sh" -t "$TAP_DEV"
     fi
 fi
 
