@@ -225,11 +225,11 @@ else
             # Assign an IP so the host can communicate with VMs in the subnet
             sudo ip addr add "$BRIDGE_IP" dev "$BRIDGE_DEV"
         fi
-    fi
 
-    if [[ -n "$BRIDGE_PORT" ]]; then
-        echo "Adding physical port $BRIDGE_PORT to bridge $BRIDGE_DEV..."
-        sudo ip link set $BRIDGE_PORT master $BRIDGE_DEV
+        if [[ -n "$BRIDGE_PORT" ]]; then
+            echo "Adding physical port $BRIDGE_PORT to bridge $BRIDGE_DEV..."
+            sudo ip link set $BRIDGE_PORT master $BRIDGE_DEV
+        fi
     fi
 
     # Create a virtual network device for L1
