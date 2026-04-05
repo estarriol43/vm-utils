@@ -7,7 +7,7 @@ NESTED=""
 PVM=""
 KVM_MODE="protected"
 TAP_DEV="tap0"
-MACVTAP=""
+NET_MODE="tuntap"
 
 ROOT="/home/jianlin/nested"
 KERNEL="${ROOT}/linux-l1/arch/arm64/boot/Image"
@@ -31,7 +31,7 @@ Options:
       --nested          Enable nested mode (--nested --e2h0)
       --pvm             Enable protected VM mode (--pkvm)
   -t, --tap DEV         Tap device                 (default: ${TAP_DEV})
-      --macvtap         Use macvtap network device
+  -n, --net MODE        Network mode [tuntap|macvtap|none] (default: ${NET_MODE})
   -h, --help            Show this help message and exit
 EOF
 }
@@ -79,9 +79,9 @@ do
             TAP_DEV="$2"
             shift 2
             ;;
-        --macvtap )
-            MACVTAP="y"
-            shift 1
+        -n | --net )
+            NET_MODE="$2"
+            shift 2
             ;;
         --)
             shift
@@ -102,23 +102,27 @@ do
     esac
 done
 
-if ! ip link show $TAP_DEV > /dev/null 2>&1; then
-    echo "Network interface $TAP_DEV does not exist. Auto-creating via bridge.sh..."
-    SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
-    if [ "$MACVTAP" = 'y' ]; then
-        bash "$SCRIPT_DIR/bridge.sh" -t "$TAP_DEV" -m macvtap
-    else
-        bash "$SCRIPT_DIR/bridge.sh" -t "$TAP_DEV"
+if [ "$NET_MODE" != "none" ]; then
+    if ! ip link show $TAP_DEV > /dev/null 2>&1; then
+        echo "Network interface $TAP_DEV does not exist. Auto-creating via bridge.sh..."
+        SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
+        if [ "$NET_MODE" = "macvtap" ]; then
+            bash "$SCRIPT_DIR/bridge.sh" -t "$TAP_DEV" -m macvtap
+        else
+            bash "$SCRIPT_DIR/bridge.sh" -t "$TAP_DEV"
+        fi
     fi
 fi
 
-if [ "$MACVTAP" = 'y' ]; then
+if [ "$NET_MODE" = "none" ]; then
+    NET_ARGS="mode=none"
+elif [ "$NET_MODE" = "macvtap" ]; then
     TAP_INDEX=$(cat /sys/class/net/$TAP_DEV/ifindex)
     TAP_MAC=$(cat /sys/class/net/$TAP_DEV/address)
     TAP_DEV=/dev/tap$TAP_INDEX
-    NET_OPT="mode=tap,tapif=$TAP_DEV,guest_mac=$TAP_MAC"
+    NET_ARGS="mode=tap,tapif=$TAP_DEV,guest_mac=$TAP_MAC"
 else
-    NET_OPT="mode=tap,tapif=$TAP_DEV,vhost=1"
+    NET_ARGS="mode=tap,tapif=$TAP_DEV,vhost=1"
 fi
 
 $KVMTOOL_PATH run \
@@ -128,6 +132,6 @@ $KVMTOOL_PATH run \
     -d $DISK_PATH \
     -p "kvm-arm.mode=$KVM_MODE rw swiotlb=force" \
     --loglevel=debug \
-    -n "$NET_OPT" \
+    -n $NET_ARGS \
     --rng \
     $PVM $NESTED $REALM
