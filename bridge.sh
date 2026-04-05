@@ -23,12 +23,12 @@ usage() {
     echo "Usage: $0 [options]"
     echo "Options:"
     echo "  -m, --mode <tuntap|macvtap>  Mode to use (default: tuntap)"
-    echo "  -w, --wan <iface>            WAN interface for NAT (default: enP2p1s0)"
-    echo "  -b, --bridge-dev <dev>       Bridge device (default: br0 for tuntap, mgbe0_0 for macvtap)"
     echo "  -t, --tap <dev>              Tap device (default: tap0)"
-    echo "  -p, --port <iface>           Physical port to add to the bridge (optional, for tuntap only)"
+    echo "  -b, --bridge-dev <dev>       Bridge device (default: br0 for tuntap, mgbe0_0 for macvtap)"
+    echo "  -p, --port <iface>           Physical port to add to the bridge (work with tuntap mode, default: mgbe0_0)"
     echo "  -f, --forward-only           Only set up forwarding rules (skips interface creation)"
-    echo "  -c, --clean-all              Clean up tap device and bridge device"
+    echo "  -w, --wan <iface>            WAN interface for NAT (work with --forward-only, default: enP2p1s0)"
+    echo "  -c, --clean-all              Clean up tap device, bridge device, and NAT rules"
     echo "  -h, --help                   Show this help message"
 }
 
