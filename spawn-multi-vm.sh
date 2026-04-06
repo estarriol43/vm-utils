@@ -68,7 +68,7 @@ tmux new-session -d -s $SESSION_NAME
 
 for i in $(seq 0 $((NUM_VMS - 1))); do
     TAP="tap${i}"
-    VM_DISK="/home/jianlin/ubuntu-vm${i}.img"
+    VM_DISK=~/ubuntu-vm${i}.img
     WINDOW_NAME="vm${i}"
 
     echo "=== Setting up VM ${i} ==="
