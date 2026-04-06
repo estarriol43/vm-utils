@@ -75,7 +75,7 @@ for i in $(seq 0 $((NUM_VMS - 1))); do
     
     # 1. Setup network
     echo "Configuring network: $TAP -> $BRIDGE"
-    echo $SUDO_PASS | sudo -S ./bridge.sh --tap $TAP --mode macvtap
+    echo $SUDO_PASS | sudo -S ./bridge.sh --tap $TAP --mode macvtap -b $BRIDGE
     
     # 2. Prepare independent disk image
     # Note: KVM needs independent read-write disk copies so images don't get corrupted
