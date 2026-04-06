@@ -6,7 +6,7 @@ NUM_VMS=2
 CUSTOM_VM_OPTS=""
 BASE_DISK=~/ubuntu-2404-no-network.img
 UPLINK="enP2p1s0"
-BRIDGE="br0"
+BRIDGE="mgbe0_0"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -74,8 +74,8 @@ for i in $(seq 0 $((NUM_VMS - 1))); do
     echo "=== Setting up VM ${i} ==="
     
     # 1. Setup network
-    echo "Configuring network: $TAP -> $BRIDGE -> $UPLINK"
-    echo $SUDO_PASS | sudo -S ./bridge-l0.sh -t $TAP -b $BRIDGE -u $UPLINK
+    echo "Configuring network: $TAP -> $BRIDGE"
+    echo $SUDO_PASS | sudo -S ./bridge.sh --tap $TAP --mode macvtap
     
     # 2. Prepare independent disk image
     # Note: KVM needs independent read-write disk copies so images don't get corrupted
@@ -92,7 +92,7 @@ for i in $(seq 0 $((NUM_VMS - 1))); do
     # 3. Create expect script inside tmux
     echo "Starting VM ${i} in tmux window: $WINDOW_NAME"
     
-    VM_CMD="sudo ./run-vm.sh -d $VM_DISK -t $TAP $CUSTOM_VM_OPTS"
+    VM_CMD="sudo ./run-vm.sh -n macvtap -d $VM_DISK -t $TAP $CUSTOM_VM_OPTS"
     EXP_SCRIPT="/tmp/spawn_vm_${i}.exp"
     cat <<EOF > "$EXP_SCRIPT"
 set timeout -1
@@ -112,16 +112,19 @@ expect {
         send "ip addr add 10.10.0.$((i + 100))/24 dev enp0s1\r"
         expect "root@ubuntu:~#"
 
+        send "ip link set dev enp0s1 mtu 1466\n"
+        expect "root@ubuntu:~#"
+
         send "ip link set enp0s1 up\r"
         expect "root@ubuntu:~#"
 
-        send "ip route add default via 10.10.0.10 dev enp0s1\r"
+        send "ip route add default via 10.10.0.20 dev enp0s1\r"
         expect "root@ubuntu:~#"
 
         send "resolvectl dns enp0s1 8.8.8.8\r"
         expect "root@ubuntu:~#"
 
-        send "sleep 30\r"
+        send "sleep 3\r"
         expect "root@ubuntu:~#"
 
         send "ping -c 1 google.com\r"
