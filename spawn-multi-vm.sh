@@ -66,6 +66,9 @@ fi
 tmux kill-session -t $SESSION_NAME 2>/dev/null || true
 tmux new-session -d -s $SESSION_NAME
 
+echo "Waiting for VMs shutdown"
+sleep 10
+
 for i in $(seq 0 $((NUM_VMS - 1))); do
     TAP="tap${i}"
     VM_DISK=~/ubuntu-vm${i}.img
