@@ -26,7 +26,7 @@ while getopts "n:k:c:s:h" opt; do
 done
 
 # Derived configuration
-UBUNTU_URL="https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-arm64-root.tar.xz"
+UBUNTU_URL="https://cloud-images.ubuntu.com/minimal/releases/noble/release/ubuntu-24.04-minimal-cloudimg-arm64-root.tar.xz"
 TARBALL_NAME=$(basename "$UBUNTU_URL")
 MOUNT_POINT="/mnt" # Using /mnt as requested for simplicity
 
