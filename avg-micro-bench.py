@@ -5,15 +5,16 @@ import subprocess
 import shlex
 import argparse
 import csv
+import os
 from collections import defaultdict
 
 def main():
     parser = argparse.ArgumentParser(
         description="Run kvm-unit-tests micro-benchmark multiple times and compute averages.",
-        usage="%(prog)s [-n RUNS] [-r RESULT_CSV] [-- command ...]"
+        usage="%(prog)s [-n RUNS] [-r RESULT_DIR] [-- command ...]"
     )
     parser.add_argument('-n', '--runs', type=int, default=5, help="Number of times to execute (default: 5)")
-    parser.add_argument('-r', '--result', type=str, help="Path to output CSV file")
+    parser.add_argument('-r', '--result', type=str, help="Path to output folder for saving CSV files")
     
     # parse_known_args separates known flags (-n, -r) from the custom benchmark command
     args, unknown = parser.parse_known_args()
@@ -31,16 +32,21 @@ def main():
 
     print(f"Executing {args.runs} times:")
     print(" ".join(shlex.quote(c) for c in command))
+    
     if args.result:
-        print(f"Output will be saved to: {args.result}")
+        # Create output directory if it doesn't already exist
+        os.makedirs(args.result, exist_ok=True)
+        print(f"Directory ready for CSV outputs: {args.result}/")
     print()
 
-    # Dictionary to store results: { 'test_name': [val1, val2, ...] }
-    results = defaultdict(list)
+    # Dictionary to store all results: { 'test_name': [val_r1, val_r2, val_r3... ] }
+    # Initiated with Nones so that if a test skips one round, columns still perfectly align!
+    results = defaultdict(lambda: [None] * args.runs)
 
-    for i in range(1, args.runs + 1):
+    for i in range(args.runs):
+        round_idx = i + 1
         print(f"===========================================")
-        print(f" Run {i} / {args.runs}")
+        print(f" Run {round_idx} / {args.runs}")
         print(f"===========================================")
         
         try:
@@ -92,7 +98,8 @@ def main():
                     avg_ns_str = parts[-1]
                     try:
                         avg_ns_val = float(avg_ns_str)
-                        results[name].append(avg_ns_val)
+                        # Store in the exact array index for this round
+                        results[name][i] = avg_ns_val
                     except ValueError:
                         # Value wasn't a float, maybe format was weird for this line
                         pass
@@ -111,25 +118,44 @@ def main():
     if not results:
         print("     [No valid data collected in output]")
     else:
-        # We also construct a list of rows to save to the CSV
-        csv_rows = []
+        # Compute and print averages
+        avg_results = {}
         for name in sorted(results.keys()):
-            vals = results[name]
-            if vals:
-                avg = sum(vals) / len(vals)
+            valid_vals = [v for v in results[name] if v is not None]
+            if valid_vals:
+                avg = sum(valid_vals) / len(valid_vals)
+                avg_results[name] = avg
                 print(f"{name:<35} {avg:>20.2f}")
-                csv_rows.append([name, f"{avg:.2f}"])
-        
-        # Save to CSV if requested via the -r option
-        if args.result and csv_rows:
+
+        if args.result:
+            # 1) Save the consolidated rounds CSV table
+            rounds_csv_path = os.path.join(args.result, "all_rounds.csv")
             try:
-                with open(args.result, 'w', newline='') as f:
+                with open(rounds_csv_path, 'w', newline='') as f:
                     writer = csv.writer(f)
-                    writer.writerow(['name', 'avg ns (overall)'])
-                    writer.writerows(csv_rows)
-                print(f"\n[+] Successfully saved results to CSV: {args.result}")
+                    header = ['name'] + [f"round_{j+1}" for j in range(args.runs)]
+                    writer.writerow(header)
+                    for name in sorted(results.keys()):
+                        row = [name]
+                        for val in results[name]:
+                            row.append(f"{val:.2f}" if val is not None else "N/A")
+                        writer.writerow(row)
+                print(f"\n[+] Successfully saved all rounds table to: {rounds_csv_path}")
             except Exception as e:
-                print(f"\n[-] Failed to save results to CSV: {e}")
+                print(f"\n[-] Failed to save rounds CSV: {e}")
+
+            # 2) Save the traditional overall average CSV
+            avg_csv_path = os.path.join(args.result, "average.csv")
+            try:
+                if avg_results:
+                    with open(avg_csv_path, 'w', newline='') as f:
+                        writer = csv.writer(f)
+                        writer.writerow(['name', 'avg ns (overall)'])
+                        for name in sorted(avg_results.keys()):
+                            writer.writerow([name, f"{avg_results[name]:.2f}"])
+                    print(f"[+] Successfully saved overall average to:  {avg_csv_path}")
+            except Exception as e:
+                print(f"[-] Failed to save average CSV: {e}")
 
 if __name__ == '__main__':
     main()
