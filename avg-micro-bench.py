@@ -3,56 +3,48 @@
 import sys
 import subprocess
 import shlex
+import argparse
+import csv
 from collections import defaultdict
 
-def print_usage():
-    print(f"Usage: {sys.argv[0]} [runs] [command...]")
-    print(f"  runs        Number of times to execute (default: 5)")
-    print(f"  command...  Custom command to execute. If not provided, defaults to:")
-    print(f"              ./lkvm-static run -k /home/jianlin/kvm-unit-tests/arm/micro-bench.flat -c 2 -m 1024 ...")
-    print(f"\nExample:")
-    print(f"  {sys.argv[0]} 10")
-    print(f"  {sys.argv[0]} 5 ./lkvm-static run -k custom.flat -c 4")
-
 def main():
-    args = sys.argv[1:]
-    runs = 5
+    parser = argparse.ArgumentParser(
+        description="Run kvm-unit-tests micro-benchmark multiple times and compute averages.",
+        usage="%(prog)s [-n RUNS] [-r RESULT_CSV] [-- command ...]"
+    )
+    parser.add_argument('-n', '--runs', type=int, default=5, help="Number of times to execute (default: 5)")
+    parser.add_argument('-r', '--result', type=str, help="Path to output CSV file")
     
-    if args and args[0] in ('-h', '--help'):
-        print_usage()
-        sys.exit(0)
-
-    # Try parsing the first argument as integer (number of runs)
-    if args:
-        try:
-            runs = int(args[0])
-            command = args[1:]
-        except ValueError:
-            command = args
-    else:
-        command = []
+    # parse_known_args separates known flags (-n, -r) from the custom benchmark command
+    args, unknown = parser.parse_known_args()
+    
+    command = unknown
+    
+    # If the user uses '--' to prevent argparse from interpreting flags, strip it
+    if command and command[0] == '--':
+        command = command[1:]
 
     if not command:
         # Default command exactly as used before
         command_str = "./lkvm-static run -k /home/jianlin/kvm-unit-tests/arm/micro-bench.flat -c 2 -m 1024 -nodefaults -p 'mmio-addr=0x1001000' -n mode=none"
-        # Parse the string into proper pieces (handling the quotes correctly)
         command = shlex.split(command_str)
 
-    print(f"Executing {runs} times:")
+    print(f"Executing {args.runs} times:")
     print(" ".join(shlex.quote(c) for c in command))
+    if args.result:
+        print(f"Output will be saved to: {args.result}")
     print()
 
     # Dictionary to store results: { 'test_name': [val1, val2, ...] }
     results = defaultdict(list)
 
-    for i in range(1, runs + 1):
+    for i in range(1, args.runs + 1):
         print(f"===========================================")
-        print(f" Run {i} / {runs}")
+        print(f" Run {i} / {args.runs}")
         print(f"===========================================")
         
         try:
             # We use Popen so we can read the stdout line-by-line while streaming it
-            # Combining stdout and stderr means both normal and error messages show perfectly
             process = subprocess.Popen(
                 command,
                 stdout=subprocess.PIPE,
@@ -79,7 +71,7 @@ def main():
                 parse_mode = True
                 continue
             
-            # We can optionally stop parsing on exit, though not strictly required
+            # We can optionally stop parsing on exit
             if line_stripped.startswith('EXIT:'):
                 parse_mode = False
                 continue
@@ -111,7 +103,7 @@ def main():
 
     # Finally compute and print the aggregate averages
     print("===========================================================")
-    print(f" Average Results over {runs} runs")
+    print(f" Average Results over {args.runs} runs")
     print("===========================================================")
     print(f"{'name':<35} {'avg ns (overall)':>20}")
     print("-" * 56)
@@ -119,11 +111,25 @@ def main():
     if not results:
         print("     [No valid data collected in output]")
     else:
+        # We also construct a list of rows to save to the CSV
+        csv_rows = []
         for name in sorted(results.keys()):
             vals = results[name]
             if vals:
                 avg = sum(vals) / len(vals)
                 print(f"{name:<35} {avg:>20.2f}")
+                csv_rows.append([name, f"{avg:.2f}"])
+        
+        # Save to CSV if requested via the -r option
+        if args.result and csv_rows:
+            try:
+                with open(args.result, 'w', newline='') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(['name', 'avg ns (overall)'])
+                    writer.writerows(csv_rows)
+                print(f"\n[+] Successfully saved results to CSV: {args.result}")
+            except Exception as e:
+                print(f"\n[-] Failed to save results to CSV: {e}")
 
 if __name__ == '__main__':
     main()
