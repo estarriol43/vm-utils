@@ -8,6 +8,7 @@ PVM=""
 KVM_MODE="protected"
 TAP_DEV="tap0"
 NET_MODE="tuntap"
+BRIDGE="br0"
 
 ROOT="/home/jianlin/nested"
 KERNEL="${ROOT}/linux-l1/arch/arm64/boot/Image"
@@ -32,6 +33,7 @@ Options:
       --pvm             Enable protected VM mode (--pkvm)
   -t, --tap DEV         Tap device                 (default: ${TAP_DEV})
   -n, --net MODE        Network mode [tuntap|macvtap|none] (default: ${NET_MODE})
+  -b, --bridge BRIDGE   Network device to bridge (default: ${BRIDGE})
   -h, --help            Show this help message and exit
 EOF
 }
@@ -83,6 +85,10 @@ do
             NET_MODE="$2"
             shift 2
             ;;
+        -b | --bridge)
+            BRIDGE="$2"
+            shift 2
+            ;;
         --)
             shift
             break
@@ -104,12 +110,12 @@ done
 
 if [ "$NET_MODE" != "none" ]; then
     if ! ip link show $TAP_DEV > /dev/null 2>&1; then
-        echo "Network interface $TAP_DEV does not exist. Auto-creating via bridge.sh..."
+        echo "Network interface $TAP_DEV does not exist on $BRIDGE. Auto-creating via bridge.sh..."
         SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
         if [ "$NET_MODE" = "macvtap" ]; then
-            bash "$SCRIPT_DIR/bridge.sh" -t "$TAP_DEV" -m macvtap
+            bash "$SCRIPT_DIR/bridge.sh" -t "$TAP_DEV" -b $BRIDGE -m macvtap
         else
-            bash "$SCRIPT_DIR/bridge.sh" -t "$TAP_DEV"
+            bash "$SCRIPT_DIR/bridge.sh" -t "$TAP_DEV" -b $BRIDGE
         fi
     fi
 fi
