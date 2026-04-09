@@ -40,7 +40,7 @@ def main():
         print(f"Directory ready for CSV and log outputs: {args.result}/")
         
         # Open a log file to save all standard output and standard error
-        log_path = os.path.join(args.result, "console_output.log")
+        log_path = os.path.join(args.result, "microbench_console_output.log")
         try:
             log_file_obj = open(log_path, 'w')
         except Exception as e:
@@ -174,7 +174,7 @@ def main():
         if args.result:
             sys.stdout.write("\n")
             # 1) Save the consolidated rounds CSV table
-            rounds_csv_path = os.path.join(args.result, "all_rounds.csv")
+            rounds_csv_path = os.path.join(args.result, "microbench_all_rounds.csv")
             try:
                 with open(rounds_csv_path, 'w', newline='') as f:
                     writer = csv.writer(f)
