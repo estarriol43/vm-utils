@@ -133,18 +133,6 @@ def main():
         if log_file_obj:
             log_file_obj.write("\n")
 
-    # Finally compute and print the aggregate averages
-    footer_str = (
-        "===========================================================\n"
-        f" Average Results over {args.runs} runs\n"
-        "===========================================================\n"
-        f"{'name':<35} {'avg ns (overall)':>20}\n"
-        "-----------------------------------------------------------\n"
-    )
-    sys.stdout.write(footer_str)
-    if log_file_obj:
-        log_file_obj.write(footer_str)
-
     if not results:
         msg = "     [No valid data collected in output]\n"
         sys.stdout.write(msg)
@@ -166,11 +154,6 @@ def main():
                 
                 avg_results[name] = {'avg': avg, 'trimmed': t_mean}
                 
-                row_str = f"{name:<35} {avg:>20.2f}\n"
-                sys.stdout.write(row_str)
-                if log_file_obj:
-                    log_file_obj.write(row_str)
-
         if args.result:
             sys.stdout.write("\n")
             # 1) Save the consolidated rounds CSV table
