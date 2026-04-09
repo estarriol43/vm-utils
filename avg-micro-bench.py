@@ -157,7 +157,14 @@ def main():
             valid_vals = [v for v in results[name] if v is not None]
             if valid_vals:
                 avg = sum(valid_vals) / len(valid_vals)
-                avg_results[name] = avg
+                
+                # Compute trimmed mean: remove min and max
+                t_mean = None
+                if len(valid_vals) > 2:
+                    trimmed = sorted(valid_vals)[1:-1]
+                    t_mean = sum(trimmed) / len(trimmed)
+                
+                avg_results[name] = {'avg': avg, 'trimmed': t_mean}
                 
                 row_str = f"{name:<35} {avg:>20.2f}\n"
                 sys.stdout.write(row_str)
@@ -183,14 +190,16 @@ def main():
                 sys.stdout.write(f"[-] Failed to save rounds CSV: {e}\n")
 
             # 2) Save the traditional overall average CSV
-            avg_csv_path = os.path.join(args.result, "average.csv")
+            avg_csv_path = os.path.join(args.result, "microbench_average.csv")
             try:
                 if avg_results:
                     with open(avg_csv_path, 'w', newline='') as f:
                         writer = csv.writer(f)
-                        writer.writerow(['name', 'avg ns (overall)'])
+                        writer.writerow(['name', 'avg ns (overall)', 'trimmed_mean'])
                         for name in sorted(avg_results.keys()):
-                            writer.writerow([name, f"{avg_results[name]:.2f}"])
+                            res = avg_results[name]
+                            t_mean_str = f"{res['trimmed']:.2f}" if res['trimmed'] is not None else "N/A"
+                            writer.writerow([name, f"{res['avg']:.2f}", t_mean_str])
                     sys.stdout.write(f"[+] Successfully saved overall average to:  {avg_csv_path}\n")
             except Exception as e:
                 sys.stdout.write(f"[-] Failed to save average CSV: {e}\n")
