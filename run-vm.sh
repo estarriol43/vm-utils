@@ -6,6 +6,7 @@ REALM=""
 NESTED=""
 PVM=""
 KVM_MODE="protected"
+KERNEL_PARAMETER=""
 TAP_DEV="tap0"
 NET_MODE="tuntap"
 BRIDGE="br0"
@@ -25,6 +26,7 @@ Options:
   -k, --kernel PATH     Path to the kernel Image (default: ${KERNEL})
   -d, --disk PATH       Path to the disk image    (default: ${DISK_PATH})
   -s, --smp N           Number of vCPUs           (default: ${SMP})
+  -p                    Kernel Parameter           (default: ${KERNEL_PARAMETER})
   -m, --mem MB          Memory size in MB          (default: ${MEM})
       --kvm MODE        KVM mode                   (default: ${KVM_MODE})
       --kvmtool PATH    Path to lkvm binary        (default: ${KVMTOOL_PATH})
@@ -75,6 +77,10 @@ do
             ;;
         -m | --mem )
             MEM="$2"
+            shift 2
+            ;;
+        -p )
+            KERNEL_PARAMETER="$2"
             shift 2
             ;;
         -t | --tap )
@@ -136,7 +142,7 @@ $KVMTOOL_PATH run \
     -m $MEM \
     -k $KERNEL \
     -d $DISK_PATH \
-    -p "kvm-arm.mode=$KVM_MODE rw swiotlb=force" \
+    -p "kvm-arm.mode=$KVM_MODE rw swiotlb=force $KERNEL_PARAMETER" \
     --loglevel=debug \
     -n $NET_ARGS \
     --rng \
