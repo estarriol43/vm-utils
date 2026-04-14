@@ -30,6 +30,7 @@ This repository contains utilities for managing and spawning virtual machines (V
 
 * **Networking:**
   * `-n, --net MODE`: Network mode (`tuntap`, `macvtap`, or `none`). Default is `tuntap`.
+    * Please use `01-netplan-jetson.yaml` on jetson thor if using tuntap mode
   * `-t, --tap DEV`: Name of the tap device to use/create (default: `tap0`).
   * `-b, --bridge BRIDGE`: Network bridge interface to attach the tap to (default: `br0`).
 
@@ -45,7 +46,9 @@ sudo ./run-vm.sh -s 2 -m 2048 -n none
 
 `spawn-multi-vm.sh` orchestrates the creation of multiple concurrent virtual machines. To isolate execution, it launches each VM in its own `tmux` window and uses an `expect` script to automatically log in and configure the VM's network (e.g., assigning a static IP corresponding to its VM index). 
 
-> **Prerequisites:** This script requires `tmux` and `expect` to be installed on your system.
+> **Prerequisites:**
+> - This script requires `tmux` and `expect` to be installed on your system.
+> - Please ensure that jetson thor uses netplan config `01-netplan-macvtap-jetson.yaml`
 
 ### Usage
 
