@@ -1,0 +1,19 @@
+network:
+  version: 2
+  renderer: NetworkManager
+  ethernets:
+    enP2p1s0:
+      dhcp4: no
+      addresses:
+        - 192.168.188.88/24
+      routes:
+        - to: default
+          via: 192.168.188.1
+      nameservers:
+        addresses: [192.168.188.100, 140.112.30.21, 8.8.8.8]
+    mgbe0_0:
+      addresses:
+        - 10.10.0.10/24
+      nameservers:
+        addresses: [140.112.30.21, 8.8.8.8]
+      mtu: 1466
