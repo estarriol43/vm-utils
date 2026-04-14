@@ -106,6 +106,11 @@ def main():
                 
             if parse_mode:
                 if 'skipped' in line_stripped:
+                    parts = line_stripped.split()
+                    if parts:
+                        name = parts[0]
+                        # Just access it to ensure the key exists so it's tracked
+                        _ = results[name]
                     continue
                 if line_stripped.startswith('Info:') or line_stripped.startswith('Warning:'):
                     continue
@@ -153,6 +158,8 @@ def main():
                     t_mean = sum(trimmed) / len(trimmed)
                 
                 avg_results[name] = {'avg': avg, 'trimmed': t_mean}
+            else:
+                avg_results[name] = {'avg': None, 'trimmed': None}
                 
         if args.result:
             sys.stdout.write("\n")
@@ -166,7 +173,7 @@ def main():
                     for name in sorted(results.keys()):
                         row = [name]
                         for val in results[name]:
-                            row.append(f"{val:.2f}" if val is not None else "N/A")
+                            row.append(f"{val:.2f}" if val is not None else "skipped")
                         writer.writerow(row)
                 sys.stdout.write(f"[+] Successfully saved all rounds table to: {rounds_csv_path}\n")
             except Exception as e:
@@ -181,8 +188,9 @@ def main():
                         writer.writerow(['name', 'avg ns (overall)', 'trimmed_mean'])
                         for name in sorted(avg_results.keys()):
                             res = avg_results[name]
-                            t_mean_str = f"{res['trimmed']:.2f}" if res['trimmed'] is not None else "N/A"
-                            writer.writerow([name, f"{res['avg']:.2f}", t_mean_str])
+                            avg_str = f"{res['avg']:.2f}" if res['avg'] is not None else "skipped"
+                            t_mean_str = f"{res['trimmed']:.2f}" if res['trimmed'] is not None else "skipped"
+                            writer.writerow([name, avg_str, t_mean_str])
                     sys.stdout.write(f"[+] Successfully saved overall average to:  {avg_csv_path}\n")
             except Exception as e:
                 sys.stdout.write(f"[-] Failed to save average CSV: {e}\n")
