@@ -15,6 +15,7 @@ ROOT="/home/jianlin/nested"
 KERNEL="${ROOT}/linux-l1/arch/arm64/boot/Image"
 KVMTOOL_PATH="${ROOT}/kvmtool-l1/lkvm-static"
 DISK_PATH="${ROOT}/ubuntu-2404-l1.img"
+DISK_OPT="-d"
 
 usage() {
     cat <<EOF
@@ -25,6 +26,7 @@ Run a VM using kvmtool.
 Options:
   -k, --kernel PATH     Path to the kernel Image (default: ${KERNEL})
   -d, --disk PATH       Path to the disk image    (default: ${DISK_PATH})
+  -i, --initramfs       Enable initramfs
   -s, --smp N           Number of vCPUs           (default: ${SMP})
   -p                    Kernel Parameter           (default: ${KERNEL_PARAMETER})
   -m, --mem MB          Memory size in MB          (default: ${MEM})
@@ -87,6 +89,10 @@ do
             TAP_DEV="$2"
             shift 2
             ;;
+        -i | --initramfs )
+            DISK_OPT="-i"
+            shift 1
+            ;;
         -n | --net )
             NET_MODE="$2"
             shift 2
@@ -141,7 +147,7 @@ $KVMTOOL_PATH run \
     -c $SMP \
     -m $MEM \
     -k $KERNEL \
-    -d $DISK_PATH \
+    $DISK_OPT $DISK_PATH \
     -p "kvm-arm.mode=$KVM_MODE rw swiotlb=force $KERNEL_PARAMETER" \
     --loglevel=debug \
     -n $NET_ARGS \
