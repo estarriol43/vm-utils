@@ -3,6 +3,8 @@
 IMAGE=$1
 FILE_LIST=$2
 
+e2fsck -y -f $IMAGE
+
 # Mount the partition
 sudo mount $IMAGE /mnt
 
