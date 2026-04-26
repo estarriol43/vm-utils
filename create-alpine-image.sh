@@ -4,19 +4,22 @@ set -e
 # Defaults
 IMAGE_NAME="alpine.img"
 IMAGE_SIZE="20G"
+NETCFG_FILE="interfaces"
 
 usage() {
-    echo "Usage: $0 [-n IMAGE_NAME] [-s IMAGE_SIZE] [-k SSH_KEY]"
+    echo "Usage: $0 [-n IMAGE_NAME] [-s IMAGE_SIZE] [-c NETCFG_FILE] [-k SSH_KEY]"
     echo "  -n  Output image filename  (default: $IMAGE_NAME)"
     echo "  -s  Image size             (default: $IMAGE_SIZE)"
+    echo "  -c  Network config file    (default: $NETCFG_FILE)"
     echo "  -k  SSH public key file    (default: auto-detected)"
     exit 1
 }
 
-while getopts "n:k:s:h" opt; do
+while getopts "n:k:s:c:h" opt; do
     case "$opt" in
         n) IMAGE_NAME="$OPTARG" ;;
         s) IMAGE_SIZE="$OPTARG" ;;
+        c) NETCFG_FILE="$OPTARG" ;;
         k) SSH_KEY_INPUT="$OPTARG" ;;
         h|*) usage ;;
     esac
@@ -144,6 +147,16 @@ for key in "$MOUNT_POINT/etc/ssh/ssh_host_"*; do
 done
 
 rm -rf "$TEMP_KEYS_DIR"
+
+# Install network config
+if [ -n "$NETCFG_FILE" ] && [ -f "$NETCFG_FILE" ]; then
+    echo "Installing network configuration..."
+    sudo mkdir -p "$MOUNT_POINT/etc/network"
+    sudo cp "$NETCFG_FILE" "$MOUNT_POINT/etc/network/interfaces"
+    sudo chmod 644 "$MOUNT_POINT/etc/network/interfaces"
+elif [ -n "$NETCFG_FILE" ]; then
+    echo "Warning: Network config file $NETCFG_FILE not found, skipping."
+fi
 
 echo "Replacing ttyAMA0 with ttyS0 in inittab..."
 if [ -f "$MOUNT_POINT/etc/inittab" ]; then
