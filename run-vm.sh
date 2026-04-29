@@ -10,6 +10,7 @@ KERNEL_PARAMETER=""
 TAP_DEV="tap0"
 NET_MODE="tuntap"
 BRIDGE="br0"
+EXTRA_OPT=""
 
 ROOT="/home/jianlin/nested"
 KERNEL="${ROOT}/linux-l1/arch/arm64/boot/Image"
@@ -29,6 +30,7 @@ Options:
   -i, --initramfs       Enable initramfs
   -s, --smp N           Number of vCPUs           (default: ${SMP})
   -p                    Kernel Parameter           (default: ${KERNEL_PARAMETER})
+  -o                    Extra kvmtool option
   -m, --mem MB          Memory size in MB          (default: ${MEM})
       --kvm MODE        KVM mode                   (default: ${KVM_MODE})
       --kvmtool PATH    Path to lkvm binary        (default: ${KVMTOOL_PATH})
@@ -75,6 +77,10 @@ do
             ;;
         -s | --smp )
             SMP="$2"
+            shift 2
+            ;;
+        -o )
+            EXTRA_OPT="$2"
             shift 2
             ;;
         -m | --mem )
@@ -152,4 +158,4 @@ $KVMTOOL_PATH run \
     --loglevel=debug \
     -n $NET_ARGS \
     --rng \
-    $PVM $NESTED $REALM
+    $EXTRA_OPT $PVM $NESTED $REALM
