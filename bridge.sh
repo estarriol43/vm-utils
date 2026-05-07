@@ -240,7 +240,10 @@ else
     fi
 
     # Create a virtual network device for L1
-    $SUDO ip tuntap add $TAP_DEV mode tap
+    if ! $SUDO ip tuntap add $TAP_DEV mode tap 2>/dev/null; then
+        echo "ip tuntap failed, trying tunctl..."
+        $SUDO tunctl -t $TAP_DEV
+    fi
 
     # Put virtual network device under bridge device
     $SUDO ip link set $TAP_DEV master $BRIDGE_DEV
