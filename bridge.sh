@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
 # Default Configuration
@@ -33,7 +33,7 @@ usage() {
 }
 
 setup_forwarding() {
-    if [[ "$WAN_IFACE" == "$BRIDGE_PORT" ]]; then
+    if [ "$WAN_IFACE" = "$BRIDGE_PORT" ]; then
         return
     fi
 
@@ -61,7 +61,7 @@ cleanup_forwarding() {
     sudo iptables -D FORWARD -i $WAN_IFACE -o $BRIDGE_DEV -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
 }
 
-while [[ $# -gt 0 ]]; do
+while [ $# -gt 0 ]; do
     case $1 in
         -m|--mode)
             MODE="$2"
@@ -104,27 +104,27 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ "$MODE" != "tuntap" && "$MODE" != "macvtap" ]]; then
+if [ "$MODE" != "tuntap" ] && [ "$MODE" != "macvtap" ]; then
     echo "Error: Mode must be either 'tuntap' or 'macvtap'."
     usage
     exit 1
 fi
 
 # Set defaults based on mode if not explicitly set
-if [[ "$MODE" == "macvtap" ]]; then
-    [[ $BRIDGE_DEV_SET -eq 0 ]] && BRIDGE_DEV="$BRIDGE_DEV_MACVTAP"
+if [ "$MODE" = "macvtap" ]; then
+    [ $BRIDGE_DEV_SET -eq 0 ] && BRIDGE_DEV="$BRIDGE_DEV_MACVTAP"
 else
-    [[ $BRIDGE_DEV_SET -eq 0 ]] && BRIDGE_DEV="$BRIDGE_DEV_TUNTAP"
+    [ $BRIDGE_DEV_SET -eq 0 ] && BRIDGE_DEV="$BRIDGE_DEV_TUNTAP"
 fi
 
-if [[ $FORWARD_ONLY -eq 1 ]]; then
+if [ $FORWARD_ONLY -eq 1 ]; then
     echo "Setting up forwarding rules only..."
     setup_forwarding
     echo "Forwarding rules set up successfully."
     exit 0
 fi
 
-if [[ $CLEAN_ALL -eq 1 ]]; then
+if [ $CLEAN_ALL -eq 1 ]; then
     echo "Cleaning up forwarding rules..."
     cleanup_forwarding
 
@@ -134,7 +134,7 @@ if [[ $CLEAN_ALL -eq 1 ]]; then
     for dev_info in $(ip -brief link show master $BRIDGE_DEV 2>/dev/null | awk '{print $1}'); do
         dev=${dev_info%%@*}
         # Check if it's a virtual device via sysfs. Physical devices won't be in this directory.
-        if [[ -d "/sys/devices/virtual/net/$dev" ]]; then
+        if [ -d "/sys/devices/virtual/net/$dev" ]; then
             echo "Removing virtual tap device $dev..."
             sudo ip link set $dev down 2>/dev/null || true
             sudo ip link delete $dev 2>/dev/null || true
@@ -144,7 +144,7 @@ if [[ $CLEAN_ALL -eq 1 ]]; then
     done
     
     # We only want to delete the BRIDGE_DEV if it is actually a virtual device
-    if [[ -d "/sys/devices/virtual/net/$BRIDGE_DEV" ]]; then
+    if [ -d "/sys/devices/virtual/net/$BRIDGE_DEV" ]; then
         echo "Removing virtual bridge device $BRIDGE_DEV..."
         sudo ip link set $BRIDGE_DEV down 2>/dev/null || true
         sudo ip link delete $BRIDGE_DEV 2>/dev/null || true
@@ -168,21 +168,21 @@ if ip link show $TAP_DEV >/dev/null 2>&1; then
     sudo ip link delete $TAP_DEV
 fi
 
-if [[ "$MODE" == "macvtap" ]]; then
+if [ "$MODE" = "macvtap" ]; then
     # Create a virtual network device for L1
     sudo ip link add link $BRIDGE_DEV name $TAP_DEV type macvtap mode bridge
 else
     if ! ip link show $BRIDGE_DEV >/dev/null 2>&1; then
-        PORT_IPS=()
-        PORT_GWS=()
+        PORT_IPS=""
+        PORT_GWS=""
         PORT_DNS=""
         PORT_DOMAINS=""
-        if [[ -n "$BRIDGE_PORT" ]] && ip link show "$BRIDGE_PORT" >/dev/null 2>&1; then
+        if [ -n "$BRIDGE_PORT" ] && ip link show "$BRIDGE_PORT" >/dev/null 2>&1; then
             for ip in $(ip -4 -o addr show dev "$BRIDGE_PORT" | awk '{print $4}'); do
-                PORT_IPS+=("$ip")
+                PORT_IPS="$PORT_IPS $ip"
             done
             for gw in $(ip -4 route show default dev "$BRIDGE_PORT" 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="via") print $(i+1)}'); do
-                PORT_GWS+=("$gw")
+                PORT_GWS="$PORT_GWS $gw"
             done
             if command -v resolvectl >/dev/null 2>&1; then
                 PORT_DNS=$(resolvectl dns "$BRIDGE_PORT" 2>/dev/null | awk -F': ' '{print $2}')
@@ -197,25 +197,29 @@ else
         sudo ip link add name "$BRIDGE_DEV" type bridge
         sudo ip link set "$BRIDGE_DEV" up
         
-        if [[ ${#PORT_IPS[@]} -gt 0 ]]; then
+        # trim spaces just in case
+        PORT_IPS=$(echo "$PORT_IPS" | xargs)
+        PORT_GWS=$(echo "$PORT_GWS" | xargs)
+
+        if [ -n "$PORT_IPS" ]; then
             echo "Moving IP addresses to $BRIDGE_DEV..."
-            for ip in "${PORT_IPS[@]}"; do
+            for ip in $PORT_IPS; do
                 sudo ip addr add "$ip" dev "$BRIDGE_DEV"
             done
 
-            if [[ ${#PORT_GWS[@]} -gt 0 ]]; then
+            if [ -n "$PORT_GWS" ]; then
                 echo "Restoring default routes on $BRIDGE_DEV..."
-                for gw in "${PORT_GWS[@]}"; do
+                for gw in $PORT_GWS; do
                     sudo ip route add default via "$gw" dev "$BRIDGE_DEV"
                 done
             fi
 
             if command -v resolvectl >/dev/null 2>&1; then
-                if [[ -n "$PORT_DNS" ]]; then
+                if [ -n "$PORT_DNS" ]; then
                     echo "Restoring DNS settings on $BRIDGE_DEV..."
                     sudo resolvectl dns "$BRIDGE_DEV" $PORT_DNS
                 fi
-                if [[ -n "$PORT_DOMAINS" ]]; then
+                if [ -n "$PORT_DOMAINS" ]; then
                     # - starts testing removing '-*' from domain since it is safe from empty
                     echo "Restoring DNS domains on $BRIDGE_DEV..."
                     sudo resolvectl domain "$BRIDGE_DEV" $PORT_DOMAINS
@@ -226,7 +230,7 @@ else
             sudo ip addr add "$BRIDGE_IP" dev "$BRIDGE_DEV"
         fi
 
-        if [[ -n "$BRIDGE_PORT" ]]; then
+        if [ -n "$BRIDGE_PORT" ]; then
             echo "Adding physical port $BRIDGE_PORT to bridge $BRIDGE_DEV..."
             sudo ip link set $BRIDGE_PORT master $BRIDGE_DEV
         fi
