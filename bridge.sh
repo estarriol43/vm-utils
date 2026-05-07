@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+SUDO=""
+[ "$(id -u)" -ne 0 ] && SUDO="sudo"
+
 # Default Configuration
 MODE="tuntap"
 WAN_IFACE="enP2p1s0"
@@ -38,27 +41,27 @@ setup_forwarding() {
     fi
 
     # Enable IPv4 forwarding
-    sudo sysctl -w net.ipv4.ip_forward=1
+    $SUDO sysctl -w net.ipv4.ip_forward=1
 
     # NAT: guest subnet -> uplink
-    sudo iptables -t nat -C POSTROUTING -s $SUBNET -o $WAN_IFACE -j MASQUERADE 2>/dev/null || \
-    sudo iptables -t nat -A POSTROUTING -s $SUBNET -o $WAN_IFACE -j MASQUERADE
+    $SUDO iptables -t nat -C POSTROUTING -s $SUBNET -o $WAN_IFACE -j MASQUERADE 2>/dev/null || \
+    $SUDO iptables -t nat -A POSTROUTING -s $SUBNET -o $WAN_IFACE -j MASQUERADE
 
     # Forwarding rules
-    sudo iptables -C FORWARD -i $BRIDGE_DEV -o $WAN_IFACE -j ACCEPT 2>/dev/null || \
-    sudo iptables -A FORWARD -i $BRIDGE_DEV -o $WAN_IFACE -j ACCEPT
+    $SUDO iptables -C FORWARD -i $BRIDGE_DEV -o $WAN_IFACE -j ACCEPT 2>/dev/null || \
+    $SUDO iptables -A FORWARD -i $BRIDGE_DEV -o $WAN_IFACE -j ACCEPT
 
-    sudo iptables -C FORWARD -i $WAN_IFACE -o $BRIDGE_DEV -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
-    sudo iptables -A FORWARD -i $WAN_IFACE -o $BRIDGE_DEV -m state --state RELATED,ESTABLISHED -j ACCEPT
+    $SUDO iptables -C FORWARD -i $WAN_IFACE -o $BRIDGE_DEV -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || \
+    $SUDO iptables -A FORWARD -i $WAN_IFACE -o $BRIDGE_DEV -m state --state RELATED,ESTABLISHED -j ACCEPT
 }
 
 cleanup_forwarding() {
     # NAT: guest subnet -> uplink
-    sudo iptables -t nat -D POSTROUTING -s $SUBNET -o $WAN_IFACE -j MASQUERADE 2>/dev/null || true
+    $SUDO iptables -t nat -D POSTROUTING -s $SUBNET -o $WAN_IFACE -j MASQUERADE 2>/dev/null || true
 
     # Forwarding rules
-    sudo iptables -D FORWARD -i $BRIDGE_DEV -o $WAN_IFACE -j ACCEPT 2>/dev/null || true
-    sudo iptables -D FORWARD -i $WAN_IFACE -o $BRIDGE_DEV -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
+    $SUDO iptables -D FORWARD -i $BRIDGE_DEV -o $WAN_IFACE -j ACCEPT 2>/dev/null || true
+    $SUDO iptables -D FORWARD -i $WAN_IFACE -o $BRIDGE_DEV -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
 }
 
 while [ $# -gt 0 ]; do
@@ -136,8 +139,8 @@ if [ $CLEAN_ALL -eq 1 ]; then
         # Check if it's a virtual device via sysfs. Physical devices won't be in this directory.
         if [ -d "/sys/devices/virtual/net/$dev" ]; then
             echo "Removing virtual tap device $dev..."
-            sudo ip link set $dev down 2>/dev/null || true
-            sudo ip link delete $dev 2>/dev/null || true
+            $SUDO ip link set $dev down 2>/dev/null || true
+            $SUDO ip link delete $dev 2>/dev/null || true
         else
             echo "Keeping physical device $dev..."
         fi
@@ -146,16 +149,16 @@ if [ $CLEAN_ALL -eq 1 ]; then
     # We only want to delete the BRIDGE_DEV if it is actually a virtual device
     if [ -d "/sys/devices/virtual/net/$BRIDGE_DEV" ]; then
         echo "Removing virtual bridge device $BRIDGE_DEV..."
-        sudo ip link set $BRIDGE_DEV down 2>/dev/null || true
-        sudo ip link delete $BRIDGE_DEV 2>/dev/null || true
+        $SUDO ip link set $BRIDGE_DEV down 2>/dev/null || true
+        $SUDO ip link delete $BRIDGE_DEV 2>/dev/null || true
     fi
 
     # Remove all macvtap devices linked across the system
     for dev_info in $(ip -brief link show type macvtap 2>/dev/null | awk '{print $1}'); do
         dev=${dev_info%%@*}
         echo "Removing macvtap device $dev..."
-        sudo ip link set $dev down 2>/dev/null || true
-        sudo ip link delete $dev 2>/dev/null || true
+        $SUDO ip link set $dev down 2>/dev/null || true
+        $SUDO ip link delete $dev 2>/dev/null || true
     done
     
     echo "Cleanup complete."
@@ -164,13 +167,13 @@ fi
 
 if ip link show $TAP_DEV >/dev/null 2>&1; then
     echo "Cleaning up existing $TAP_DEV..."
-    sudo ip link set $TAP_DEV down
-    sudo ip link delete $TAP_DEV
+    $SUDO ip link set $TAP_DEV down
+    $SUDO ip link delete $TAP_DEV
 fi
 
 if [ "$MODE" = "macvtap" ]; then
     # Create a virtual network device for L1
-    sudo ip link add link $BRIDGE_DEV name $TAP_DEV type macvtap mode bridge
+    $SUDO ip link add link $BRIDGE_DEV name $TAP_DEV type macvtap mode bridge
 else
     if ! ip link show $BRIDGE_DEV >/dev/null 2>&1; then
         PORT_IPS=""
@@ -190,12 +193,12 @@ else
             fi
 
             echo "Flushing IP address from $BRIDGE_PORT..."
-            sudo ip addr flush dev "$BRIDGE_PORT"
+            $SUDO ip addr flush dev "$BRIDGE_PORT"
         fi
 
         echo "Creating bridge device $BRIDGE_DEV..."
-        sudo ip link add name "$BRIDGE_DEV" type bridge
-        sudo ip link set "$BRIDGE_DEV" up
+        $SUDO ip link add name "$BRIDGE_DEV" type bridge
+        $SUDO ip link set "$BRIDGE_DEV" up
         
         # trim spaces just in case
         PORT_IPS=$(echo "$PORT_IPS" | xargs)
@@ -204,50 +207,50 @@ else
         if [ -n "$PORT_IPS" ]; then
             echo "Moving IP addresses to $BRIDGE_DEV..."
             for ip in $PORT_IPS; do
-                sudo ip addr add "$ip" dev "$BRIDGE_DEV"
+                $SUDO ip addr add "$ip" dev "$BRIDGE_DEV"
             done
 
             if [ -n "$PORT_GWS" ]; then
                 echo "Restoring default routes on $BRIDGE_DEV..."
                 for gw in $PORT_GWS; do
-                    sudo ip route add default via "$gw" dev "$BRIDGE_DEV"
+                    $SUDO ip route add default via "$gw" dev "$BRIDGE_DEV"
                 done
             fi
 
             if command -v resolvectl >/dev/null 2>&1; then
                 if [ -n "$PORT_DNS" ]; then
                     echo "Restoring DNS settings on $BRIDGE_DEV..."
-                    sudo resolvectl dns "$BRIDGE_DEV" $PORT_DNS
+                    $SUDO resolvectl dns "$BRIDGE_DEV" $PORT_DNS
                 fi
                 if [ -n "$PORT_DOMAINS" ]; then
                     # - starts testing removing '-*' from domain since it is safe from empty
                     echo "Restoring DNS domains on $BRIDGE_DEV..."
-                    sudo resolvectl domain "$BRIDGE_DEV" $PORT_DOMAINS
+                    $SUDO resolvectl domain "$BRIDGE_DEV" $PORT_DOMAINS
                 fi
             fi
         else
             # Assign an IP so the host can communicate with VMs in the subnet
-            sudo ip addr add "$BRIDGE_IP" dev "$BRIDGE_DEV"
+            $SUDO ip addr add "$BRIDGE_IP" dev "$BRIDGE_DEV"
         fi
 
         if [ -n "$BRIDGE_PORT" ]; then
             echo "Adding physical port $BRIDGE_PORT to bridge $BRIDGE_DEV..."
-            sudo ip link set $BRIDGE_PORT master $BRIDGE_DEV
+            $SUDO ip link set $BRIDGE_PORT master $BRIDGE_DEV
         fi
     fi
 
     # Create a virtual network device for L1
-    sudo ip tuntap add $TAP_DEV mode tap
+    $SUDO ip tuntap add $TAP_DEV mode tap
 
     # Put virtual network device under bridge device
-    sudo ip link set $TAP_DEV master $BRIDGE_DEV
+    $SUDO ip link set $TAP_DEV master $BRIDGE_DEV
 fi
 
 # Match the MTU size on jetson 10Gbps network interface
-sudo ip link set dev $TAP_DEV mtu 1466
+$SUDO ip link set dev $TAP_DEV mtu 1466
 
 # Bring up virtual network device for L1
-sudo ip link set $TAP_DEV up
+$SUDO ip link set $TAP_DEV up
 
 echo "Bridge network set up successfully in $MODE mode."
 echo "Virtual Network Device: $TAP_DEV"
