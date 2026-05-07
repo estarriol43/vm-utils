@@ -18,6 +18,8 @@ KVMTOOL_PATH="${ROOT}/kvmtool-l1/lkvm-static"
 DISK_PATH="${ROOT}/ubuntu-2404-l1.img"
 DISK_OPT="-d"
 
+VHOST_OPT=",vhost=1"
+
 usage() {
     cat <<EOF
 Usage: $(basename "$0") [OPTIONS]
@@ -40,6 +42,7 @@ Options:
   -t, --tap DEV         Tap device                 (default: ${TAP_DEV})
   -n, --net MODE        Network mode [tuntap|macvtap|none] (default: ${NET_MODE})
   -b, --bridge BRIDGE   Network device to bridge (default: ${BRIDGE})
+      --no-vhost        Disable vhost suppport
   -h, --help            Show this help message and exit
 EOF
 }
@@ -107,6 +110,10 @@ do
             BRIDGE="$2"
             shift 2
             ;;
+        --no-vhost )
+            VHOST_OPT=""
+            shift 1
+            ;;
         --)
             shift
             break
@@ -144,9 +151,9 @@ elif [ "$NET_MODE" = "macvtap" ]; then
     TAP_INDEX=$(cat /sys/class/net/$TAP_DEV/ifindex)
     TAP_MAC=$(cat /sys/class/net/$TAP_DEV/address)
     TAP_DEV=/dev/tap$TAP_INDEX
-    NET_ARGS="mode=tap,tapif=$TAP_DEV,guest_mac=$TAP_MAC"
+    NET_ARGS="mode=tap,tapif=$TAP_DEV${VHOST_OPT},guest_mac=$TAP_MAC"
 else
-    NET_ARGS="mode=tap,tapif=$TAP_DEV,vhost=1"
+    NET_ARGS="mode=tap,tapif=$TAP_DEV${VHOST_OPT}"
 fi
 
 $KVMTOOL_PATH run \
