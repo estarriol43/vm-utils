@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 MEM="12288"
 SMP="4"
@@ -131,9 +131,9 @@ if [ "$NET_MODE" != "none" ]; then
         echo "Network interface $TAP_DEV does not exist on $BRIDGE. Auto-creating via bridge.sh..."
         SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
         if [ "$NET_MODE" = "macvtap" ]; then
-            bash "$SCRIPT_DIR/bridge.sh" -t "$TAP_DEV" -b $BRIDGE -m macvtap
+            "$SCRIPT_DIR/bridge.sh" -t "$TAP_DEV" -b $BRIDGE -m macvtap
         else
-            bash "$SCRIPT_DIR/bridge.sh" -t "$TAP_DEV" -b $BRIDGE
+            "$SCRIPT_DIR/bridge.sh" -t "$TAP_DEV" -b $BRIDGE
         fi
     fi
 fi
