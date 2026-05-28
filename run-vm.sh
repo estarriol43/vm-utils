@@ -19,6 +19,7 @@ DISK_PATH="${ROOT}/ubuntu-2404-l1.img"
 DISK_OPT="-d"
 
 VHOST_OPT=",vhost=1"
+SWIOTLB_OPT="force"
 
 usage() {
     cat <<EOF
@@ -27,21 +28,22 @@ Usage: $(basename "$0") [OPTIONS]
 Run a VM using kvmtool.
 
 Options:
-  -k, --kernel PATH     Path to the kernel Image (default: ${KERNEL})
-  -d, --disk PATH       Path to the disk image    (default: ${DISK_PATH})
+  -k, --kernel PATH     Path to the kernel Image   (default: ${KERNEL})
+  -d, --disk PATH       Path to the disk image     (default: ${DISK_PATH})
   -i, --initramfs       Enable initramfs
-  -s, --smp N           Number of vCPUs           (default: ${SMP})
+  -s, --smp N           Number of vCPUs            (default: ${SMP})
   -p                    Kernel Parameter           (default: ${KERNEL_PARAMETER})
   -o                    Extra kvmtool option
   -m, --mem MB          Memory size in MB          (default: ${MEM})
       --kvm MODE        KVM mode                   (default: ${KVM_MODE})
       --kvmtool PATH    Path to lkvm binary        (default: ${KVMTOOL_PATH})
-      --realm           Enable realm mode (--realm --restricted_mem)
-      --nested          Enable nested mode (--nested --e2h0)
-      --pvm             Enable protected VM mode (--pkvm)
+      --realm           Enable realm mode          (--realm --restricted_mem)
+      --nested          Enable nested mode         (--nested --e2h0)
+      --pvm             Enable protected VM mode   (--pkvm)
+      --swiotlb         swiotlb option             (default: ${SWIOTLB_OPT})
   -t, --tap DEV         Tap device                 (default: ${TAP_DEV})
   -n, --net MODE        Network mode [tuntap|macvtap|none] (default: ${NET_MODE})
-  -b, --bridge BRIDGE   Network device to bridge (default: ${BRIDGE})
+  -b, --bridge BRIDGE   Network device to bridge   (default: ${BRIDGE})
       --no-vhost        Disable vhost suppport
   -h, --help            Show this help message and exit
 EOF
@@ -72,6 +74,10 @@ do
             ;;
         --kvmtool)
             KVMTOOL_PATH="$2"
+            shift 2
+            ;;
+        --swiotlb )
+            SWIOTLB_OPT="$2"
             shift 2
             ;;
         -d | --disk )
@@ -161,7 +167,7 @@ $KVMTOOL_PATH run \
     -m $MEM \
     -k $KERNEL \
     $DISK_OPT $DISK_PATH \
-    -p "kvm-arm.mode=$KVM_MODE rw swiotlb=force $KERNEL_PARAMETER" \
+    -p "kvm-arm.mode=$KVM_MODE rw swiotlb=$SWIOTLB_OPT $KERNEL_PARAMETER" \
     --loglevel=debug \
     -n $NET_ARGS \
     --rng \
