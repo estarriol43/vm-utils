@@ -11,6 +11,7 @@ TAP_DEV="tap0"
 NET_MODE="tuntap"
 BRIDGE="br0"
 EXTRA_OPT=""
+HUGEPAGE=""
 
 ROOT="/home/jianlin/nested"
 KERNEL="${ROOT}/linux-l1/arch/arm64/boot/Image"
@@ -40,6 +41,7 @@ Options:
       --realm           Enable realm mode          (--realm --restricted_mem)
       --nested          Enable nested mode         (--nested --e2h0)
       --pvm             Enable protected VM mode   (--pkvm)
+      --hugetlb         Enable huge page mode      (--hugetlbfs /dev/hugepages)
       --swiotlb         swiotlb option             (default: ${SWIOTLB_OPT})
   -t, --tap DEV         Tap device                 (default: ${TAP_DEV})
   -n, --net MODE        Network mode [tuntap|macvtap|none] (default: ${NET_MODE})
@@ -70,6 +72,10 @@ do
             ;;
         --pvm)
             PVM="--pkvm"
+            shift 1
+            ;;
+        --hugetlb)
+            HUGEPAGE="--hugetlbfs /dev/hugepages"
             shift 1
             ;;
         --kvmtool)
@@ -162,6 +168,29 @@ else
     NET_ARGS="mode=tap,tapif=$TAP_DEV${VHOST_OPT}"
 fi
 
+if [ -n "$HUGEPAGE" ]; then
+    required_hugepages=$(( (MEM + 1) / 2 ))
+    current_hugepages=$(cat /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages 2>/dev/null || echo 0)
+    if [ "$current_hugepages" -lt "$required_hugepages" ]; then
+        echo "Allocating $required_hugepages 2MB huge pages (currently $current_hugepages)..."
+        echo "$required_hugepages" > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
+        allocated_hugepages=$(cat /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages 2>/dev/null || echo 0)
+        if [ "$allocated_hugepages" -lt "$required_hugepages" ]; then
+            echo "Warning: Could only allocate $allocated_hugepages huge pages (needed $required_hugepages). VM launch might fail."
+        fi
+    fi
+
+    echo "Setting up hugetlbfs..."
+    if grep -q " /dev/hugepages " /proc/mounts; then
+        umount /dev/hugepages
+    fi
+    if [ -d /dev/hugepages ]; then
+        rm -rf /dev/hugepages
+    fi
+    mkdir -p /dev/hugepages
+    mount -t hugetlbfs -o pagesize=2M none /dev/hugepages
+fi
+
 $KVMTOOL_PATH run \
     -c $SMP \
     -m $MEM \
@@ -171,4 +200,4 @@ $KVMTOOL_PATH run \
     --loglevel=debug \
     -n $NET_ARGS \
     --rng \
-    $EXTRA_OPT $PVM $NESTED $REALM
+    $EXTRA_OPT $PVM $NESTED $REALM $HUGEPAGE
